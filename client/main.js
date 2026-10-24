@@ -1,4 +1,5 @@
 import { DiscordSDK } from "@discord/embedded-app-sdk";
+import { io } from "socket.io-client";
 import "./style.css";
 
 /* ==========================================================================
@@ -572,9 +573,16 @@ function stopConfetti() {
    EVENT LISTENERS & MODE SWITCHING
    ========================================================================== */
 
+// Global socket instance for multiplayer synchronisation with server.js
+let socket = null;
+
 // Spin Button Trigger
 btnSpin.addEventListener("click", () => {
-  spinWheel();
+  if (socket && socket.connected && discordSdk && discordSdk.channelId) {
+    socket.emit("wheel:spin", { channelId: discordSdk.channelId });
+  } else {
+    spinWheel();
+  }
 });
 
 // Test Specific Angle Trigger (convenient for backend devs)
@@ -689,15 +697,108 @@ async function setupDiscordSdk() {
           if (auth.user.avatar) {
             userAvatarEl.src = `https://cdn.discordapp.com/avatars/${auth.user.id}/${auth.user.avatar}.png?size=128`;
           }
+
+          // Connect to backend Socket.IO room for live VC sync
+          initSocketConnection(discordSdk.channelId, auth.user);
         }
       }
     } catch (authError) {
       console.warn("Discord SDK OAuth handshake skipped or in test mode:", authError);
     }
+
+    // Subscribe to Discord Activity participants update
+    try {
+      await discordSdk.subscribe("ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE", (event) => {
+        if (event && Array.isArray(event.participants) && event.participants.length > 0) {
+          const vcMembers = event.participants.map((p, idx) => ({
+            id: p.id || `p-${idx}`,
+            label: `@${p.username || p.global_name || 'Member'}`,
+            avatar: p.avatar
+              ? `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.png?size=128`
+              : `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80`,
+          }));
+          setParticipants(vcMembers);
+        }
+      });
+    } catch (subErr) {
+      console.info("Activity instance participants subscription note:", subErr.message);
+    }
   } catch (sdkError) {
     console.info("Discord SDK not running in Discord client iframe; running standalone mode.", sdkError);
   }
 }
+
+/**
+ * Connects to the backend Socket.io server (from server/server.js)
+ * to automatically sync real voice channel participants in real time.
+ */
+function initSocketConnection(channelId, user) {
+  try {
+    socket = io({
+      path: "/api/socket.io",
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("connect", () => {
+      console.log("[Socket] Connected to backend room for VC channel:", channelId);
+      socket.emit("room:join", { channelId, user });
+    });
+
+    socket.on("room:state", (state) => {
+      if (state && Array.isArray(state.wheelSegments) && state.wheelSegments.length > 0) {
+        setParticipants(state.wheelSegments);
+      }
+    });
+
+    socket.on("wheel:segments_updated", ({ segments }) => {
+      if (Array.isArray(segments) && segments.length > 0) {
+        setParticipants(segments);
+      }
+    });
+
+    socket.on("room:user_joined", ({ participants }) => {
+      if (Array.isArray(participants) && participants.length > 0) {
+        setParticipants(participants);
+      }
+    });
+
+    socket.on("wheel:spin_started", (spinData) => {
+      spinWheel(spinData.targetAngle, spinData.durationMs, spinData.winningSegment);
+    });
+  } catch (err) {
+    console.warn("[Socket] Could not connect to socket server:", err);
+  }
+}
+
+/**
+ * Public helper to dynamically populate the wheel with real members from the voice channel.
+ * 
+ * @param {Array<{ id?: string, label?: string, username?: string, avatar?: string }>} memberList
+ */
+export function setParticipants(memberList) {
+  if (!Array.isArray(memberList) || memberList.length === 0) return;
+
+  MODES.members.slices = memberList.map((m, index) => {
+    const handle = m.label || (m.username ? `@${m.username}` : `@Member${index + 1}`);
+    let avatarUrl = m.avatar || null;
+    if (!avatarUrl && m.id && m.avatarId) {
+      avatarUrl = `https://cdn.discordapp.com/avatars/${m.id}/${m.avatarId}.png?size=128`;
+    }
+    return {
+      id: m.id || `member-${index}`,
+      label: handle,
+      avatar: avatarUrl || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80`,
+      colorTheme: index % 3,
+    };
+  });
+
+  if (currentMode === "members") {
+    renderWheel();
+  }
+}
+
+// Expose on window for easy access
+window.setParticipants = setParticipants;
 
 /* ==========================================================================
    INITIALIZATION
