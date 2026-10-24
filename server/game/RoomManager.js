@@ -38,7 +38,7 @@ export class RoomManager {
         },
         settings: {
           eliminationMode: true,
-          allowAnyoneToSpin: false,
+          allowAnyoneToSpin: true,
           turnBased: false,
           spinCooldownMs: 1500
         },
@@ -271,11 +271,12 @@ export class RoomManager {
 
   loadPreset(channelId, presetId) {
     const room = this.getOrCreateRoom(channelId);
-    if (presetId === "giveaway" || presetId === "players") {
+    if (presetId === "giveaway" || presetId === "players" || presetId === "members") {
       return this.syncVcParticipantsToWheel(channelId);
     }
 
-    const preset = PRESET_WHEELS[presetId];
+    const key = presetId === "items" ? "items" : presetId;
+    const preset = PRESET_WHEELS[key];
     if (!preset) {
       throw new Error(`Unknown preset: ${presetId}`);
     }

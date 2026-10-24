@@ -5,6 +5,20 @@ export const PRESET_WHEELS = {
     description: "Automatically fills wheel with all participants in the Voice Channel",
     segments: []
   },
+  items: {
+    id: "items",
+    name: "Item Drops 🎁",
+    segments: [
+      { id: "nitro", label: "Discord Nitro", sub: "1 Month Sub", icon: "💎", colorTheme: 1, weight: 1 },
+      { id: "vip", label: "VIP Role", sub: "Permanent", icon: "👑", colorTheme: 0, weight: 1 },
+      { id: "coins", label: "1,000 Coins", sub: "Server Currency", icon: "🪙", colorTheme: 2, weight: 1 },
+      { id: "badge", label: "Rare Badge", sub: "Profile Showcase", icon: "🎖️", colorTheme: 0, weight: 1 },
+      { id: "boost", label: "Server Boost", sub: "Level Up", icon: "🚀", colorTheme: 1, weight: 1 },
+      { id: "box", label: "Mystery Box", sub: "Random Loot", icon: "🎁", colorTheme: 2, weight: 1 },
+      { id: "title", label: "Custom Title", sub: "Role Color", icon: "✨", colorTheme: 0, weight: 1 },
+      { id: "spin_again", label: "Spin Again", sub: "Bonus Turn", icon: "🔄", colorTheme: 1, weight: 1 }
+    ]
+  },
   default_prizes: {
     id: "default_prizes",
     name: "Party & Challenges",
