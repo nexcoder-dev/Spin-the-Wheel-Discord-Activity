@@ -127,11 +127,42 @@
             </div>
           </div>
 
+          <!-- Giveaway Prize & Quick Room Settings Card -->
+          <div class="giveaway-prize-card" id="giveaway-prize-card">
+            <div class="prize-info">
+              <span class="prize-tag">CURRENT PRIZE</span>
+              <span class="prize-title-text" id="prize-title-text">Discord Nitro 1 Month 🎁</span>
+            </div>
+            <div class="prize-actions">
+              <button class="btn-prize-action" id="btn-prize-edit" title="Edit Giveaway Prize">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-sm">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit</span>
+              </button>
+              <button class="btn-prize-action" id="btn-toggle-elimination" title="Toggle Winner Elimination Mode">
+                <span id="elimination-status-dot" class="status-dot-active"></span>
+                <span id="elimination-status-label">Elimination: ON</span>
+              </button>
+              <button class="btn-prize-action btn-danger-action" id="btn-reset-wheel" title="Reset Wheel & Winners">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-sm">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span>Reset</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Active Participants / Slices Preview Roster -->
           <div class="roster-card">
             <div class="roster-header">
-              <span class="roster-title" id="roster-title">Active Contenders (8)</span>
-              <span class="roster-hint">Even 45° Slices</span>
+              <div class="roster-header-left">
+                <span class="roster-title" id="roster-title">Active Contenders (8)</span>
+                <span class="roster-host-pill" id="roster-host-pill">👑 Host</span>
+              </div>
+              <span class="roster-hint">Real-time VC Sync</span>
             </div>
             <div class="roster-chips" id="roster-chips">
               <!-- Dynamically populated via JS -->
@@ -162,6 +193,19 @@
             </div>
           </div>
 
+          <!-- Live Multiplayer Reactions Bar -->
+          <div class="reactions-bar">
+            <span class="reactions-label">CHEER:</span>
+            <div class="reactions-list" id="reactions-list">
+              <button class="reaction-pill" data-emoji="🎉" title="Send Party Popper">🎉</button>
+              <button class="reaction-pill" data-emoji="🔥" title="Send Fire">🔥</button>
+              <button class="reaction-pill" data-emoji="👑" title="Send Crown">👑</button>
+              <button class="reaction-pill" data-emoji="👏" title="Send Applause">👏</button>
+              <button class="reaction-pill" data-emoji="💎" title="Send Diamond">💎</button>
+              <button class="reaction-pill" data-emoji="✨" title="Send Sparkles">✨</button>
+            </div>
+          </div>
+
           <!-- Live Feed / Previous Winner Ticker -->
           <div class="recent-winner-ticker">
             <div class="ticker-badge">LAST WINNER</div>
@@ -176,6 +220,9 @@
         <!-- Right Column: The Hero Wheel Stage -->
         <section class="wheel-stage-column">
           <div class="wheel-wrapper">
+            <!-- Floating Reactions Particle Layer -->
+            <div class="floating-reactions-container" id="floating-reactions-container" aria-hidden="true"></div>
+
             <!-- Ambient Violet Halo behind wheel -->
             <div class="wheel-halo" aria-hidden="true"></div>
 

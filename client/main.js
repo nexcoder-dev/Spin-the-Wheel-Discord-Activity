@@ -626,36 +626,50 @@ export function spinWheel(targetAngle = null, duration = 4800, customWinner = nu
   const sliceAngle = 360 / numSlices;
 
   let chosenIndex;
-  let finalSliceAngle;
+  let nextRotation;
+  let winner = customWinner;
 
   if (targetAngle !== null && !isNaN(targetAngle)) {
-    // Normalizing target angle to [0, 360)
-    const normalized = ((targetAngle % 360) + 360) % 360;
-    chosenIndex = Math.floor(normalized / sliceAngle);
-    finalSliceAngle = normalized;
+    // Exact authoritative server angle:
+    // If targetAngle is already cumulative (> currentRotation), use directly
+    if (targetAngle > currentRotation) {
+      nextRotation = targetAngle;
+    } else {
+      const targetMod = ((targetAngle % 360) + 360) % 360;
+      const currentMod = ((currentRotation % 360) + 360) % 360;
+      let diff = targetMod - currentMod;
+      if (diff <= 0) diff += 360;
+      nextRotation = currentRotation + (5 * 360) + diff;
+    }
+    currentRotation = nextRotation;
+
+    if (winner && winner.id) {
+      chosenIndex = items.findIndex((it) => it.id === winner.id);
+    }
+    if (chosenIndex === undefined || chosenIndex < 0) {
+      const landingAngle = ((360 - (currentRotation % 360)) % 360 + 360) % 360;
+      chosenIndex = Math.floor(landingAngle / sliceAngle) % numSlices;
+    }
+    if (!winner) {
+      winner = items[chosenIndex] || { label: "Winner", id: "winner" };
+    }
   } else {
-    // Pick a random slice and land within its middle 60%
+    // Local offline spin
     chosenIndex = Math.floor(Math.random() * numSlices);
     const sliceStart = chosenIndex * sliceAngle;
     const padding = sliceAngle * 0.2;
     const randomOffset = padding + Math.random() * (sliceAngle - padding * 2);
-    finalSliceAngle = sliceStart + randomOffset;
+    const finalSliceAngle = sliceStart + randomOffset;
+    winner = customWinner || items[chosenIndex];
+
+    const fullRotations = (5 + Math.floor(Math.random() * 3)) * 360;
+    const currentAngleMod = currentRotation % 360;
+    let targetAngleMod = 360 - finalSliceAngle;
+    let angleDelta = targetAngleMod - currentAngleMod;
+    if (angleDelta <= 0) angleDelta += 360;
+    nextRotation = currentRotation + fullRotations + angleDelta;
+    currentRotation = nextRotation;
   }
-
-  // Ensure winning item reference
-  const winner = customWinner || items[chosenIndex];
-
-  // Calculate cumulative rotation forward
-  const fullRotations = (5 + Math.floor(Math.random() * 3)) * 360;
-  const currentAngleMod = currentRotation % 360;
-  let targetAngleMod = 360 - finalSliceAngle;
-  let angleDelta = targetAngleMod - currentAngleMod;
-  if (angleDelta <= 0) {
-    angleDelta += 360;
-  }
-
-  const nextRotation = currentRotation + fullRotations + angleDelta;
-  currentRotation = nextRotation;
 
   // Apply CSS transition to the SVG
   wheelSvg.style.transition = `transform ${duration}ms cubic-bezier(0.12, 0.8, 0.25, 1)`;
@@ -927,11 +941,15 @@ function stopConfetti() {
 
 // Global socket instance for multiplayer synchronisation with server.js
 let socket = null;
+let currentRoomState = null;
 
 // Spin Button Trigger
 btnSpin.addEventListener("click", () => {
-  if (socket && socket.connected && discordSdk && discordSdk.channelId) {
-    socket.emit("wheel:spin", { channelId: discordSdk.channelId });
+  const channelId = (discordSdk && discordSdk.channelId) || (socket && socket.channelId) || "standalone-room";
+  if (socket && socket.connected) {
+    btnSpin.disabled = true;
+    btnSpinText.textContent = "SPINNING...";
+    socket.emit("wheel:spin", { channelId });
   } else {
     spinWheel();
   }
@@ -948,26 +966,102 @@ btnTestAngle.addEventListener("click", () => {
   }
 });
 
-// Mode Tabs
+// Mode Tabs (Synced with Backend Presets)
 tabMembers.addEventListener("click", () => {
-  if (isSpinning || currentMode === "members") return;
+  if (isSpinning) return;
   currentMode = "members";
   tabMembers.classList.add("active");
   tabMembers.setAttribute("aria-selected", "true");
   tabItems.classList.remove("active");
   tabItems.setAttribute("aria-selected", "false");
   renderWheel();
+
+  const channelId = (discordSdk && discordSdk.channelId) || (socket && socket.channelId) || "standalone-room";
+  if (socket && socket.connected) {
+    socket.emit("giveaway:sync", { channelId });
+  }
 });
 
 tabItems.addEventListener("click", () => {
-  if (isSpinning || currentMode === "items") return;
+  if (isSpinning) return;
   currentMode = "items";
   tabItems.classList.add("active");
   tabItems.setAttribute("aria-selected", "true");
   tabMembers.classList.remove("active");
   tabMembers.setAttribute("aria-selected", "false");
   renderWheel();
+
+  const channelId = (discordSdk && discordSdk.channelId) || (socket && socket.channelId) || "standalone-room";
+  if (socket && socket.connected) {
+    socket.emit("wheel:load_preset", { channelId, presetId: "items" });
+  }
 });
+
+// Giveaway Prize Edit Trigger
+if (btnPrizeEdit) {
+  btnPrizeEdit.addEventListener("click", () => {
+    const currentPrize = prizeTitleText ? prizeTitleText.textContent : "Discord Nitro 1 Month 🎁";
+    const newPrize = prompt("Enter Giveaway Prize Title:", currentPrize);
+    if (newPrize && newPrize.trim()) {
+      const channelId = (discordSdk && discordSdk.channelId) || (socket && socket.channelId) || "standalone-room";
+      if (prizeTitleText) prizeTitleText.textContent = newPrize.trim();
+      if (tickerPrize) tickerPrize.textContent = `Prize: ${newPrize.trim()}`;
+      if (socket && socket.connected) {
+        socket.emit("giveaway:set_prize", { channelId, prize: newPrize.trim() });
+      }
+    }
+  });
+}
+
+// Winner Elimination Mode Toggle
+if (btnToggleElimination) {
+  btnToggleElimination.addEventListener("click", () => {
+    const isCurrentlyElim = eliminationStatusLabel?.textContent.includes("ON") || false;
+    const newElim = !isCurrentlyElim;
+    if (eliminationStatusLabel) eliminationStatusLabel.textContent = `Elimination: ${newElim ? "ON" : "OFF"}`;
+    if (eliminationStatusDot) eliminationStatusDot.className = newElim ? "status-dot-active" : "status-dot-inactive";
+
+    const channelId = (discordSdk && discordSdk.channelId) || (socket && socket.channelId) || "standalone-room";
+    if (socket && socket.connected) {
+      socket.emit("giveaway:set_options", { channelId, options: { eliminationMode: newElim } });
+    }
+  });
+}
+
+// Reset Wheel & Contenders Trigger
+if (btnResetWheel) {
+  btnResetWheel.addEventListener("click", () => {
+    const channelId = (discordSdk && discordSdk.channelId) || (socket && socket.channelId) || "standalone-room";
+    if (socket && socket.connected) {
+      if (currentMode === "members") {
+        socket.emit("giveaway:reset", { channelId });
+      } else {
+        socket.emit("wheel:load_preset", { channelId, presetId: "items" });
+      }
+    } else {
+      renderWheel();
+    }
+  });
+}
+
+// Live Cheer / Reaction Trigger
+if (reactionsList) {
+  reactionsList.addEventListener("click", (e) => {
+    const btn = e.target.closest(".reaction-pill");
+    if (!btn) return;
+    const emoji = btn.getAttribute("data-emoji") || "🎉";
+    const channelId = (discordSdk && discordSdk.channelId) || (socket && socket.channelId) || "standalone-room";
+    const myName = (userNameEl && userNameEl.textContent !== "Alex Rivera") ? userNameEl.textContent : "Player";
+
+    // Immediate local feedback
+    spawnFloatingReaction(myName, emoji);
+
+    // Broadcast across all clients in the Discord Activity
+    if (socket && socket.connected) {
+      socket.emit("game:reaction", { channelId, emoji });
+    }
+  });
+}
 
 // Modal Close Triggers
 modalCloseBtn.addEventListener("click", closeWinnerModal);
@@ -998,17 +1092,27 @@ window.addEventListener("resize", () => {
    ========================================================================== */
 
 let auth = null;
+let discordSdk = null;
 const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
 
 async function setupDiscordSdk() {
   if (!clientId) {
     console.info("Discord Activity: Running in standalone dev mode (no VITE_DISCORD_CLIENT_ID set).");
+    initSocketConnection("standalone-room", { id: "dev-tester", username: "LocalTester" });
     return;
   }
 
   try {
-    const discordSdk = new DiscordSDK(clientId);
-    await discordSdk.ready();
+    discordSdk = new DiscordSDK(clientId);
+
+    // Timeout safeguard: if running in standalone browser tab outside Discord iframe,
+    // ready() handshake will never complete. Fall back to standalone after 2.5s.
+    await Promise.race([
+      discordSdk.ready(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Running standalone outside Discord")), 2500)
+      )
+    ]);
     console.log("Discord SDK is ready.");
 
     // Retrieve Voice Channel Name if inside a guild
@@ -1024,6 +1128,7 @@ async function setupDiscordSdk() {
     }
 
     // Attempt authorization if server token endpoint exists
+    let currentUser = null;
     try {
       const { code } = await discordSdk.commands.authorize({
         client_id: clientId,
@@ -1033,30 +1138,43 @@ async function setupDiscordSdk() {
         scope: ["identify", "guilds"],
       });
 
-      const response = await fetch("/.proxy/api/token", {
+      // Try /api/token first, fallback to /.proxy/api/token
+      let response = await fetch("/api/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
-      });
+      }).catch(() => null);
 
-      if (response.ok) {
+      if (!response || !response.ok) {
+        response = await fetch("/.proxy/api/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
+        }).catch(() => null);
+      }
+
+      if (response && response.ok) {
         const { access_token } = await response.json();
         auth = await discordSdk.commands.authenticate({ access_token });
 
         if (auth && auth.user) {
+          currentUser = auth.user;
           userNameEl.textContent = auth.user.global_name || auth.user.username;
           userTagEl.textContent = `@${auth.user.username}`;
           if (auth.user.avatar) {
             userAvatarEl.src = `https://cdn.discordapp.com/avatars/${auth.user.id}/${auth.user.avatar}.png?size=128`;
           }
-
-          // Connect to backend Socket.IO room for live VC sync
-          initSocketConnection(discordSdk.channelId, auth.user);
         }
       }
     } catch (authError) {
       console.warn("Discord SDK OAuth handshake skipped or in test mode:", authError);
     }
+
+    // Always connect to backend Socket.IO room for live VC sync & authoritative wheel spins
+    initSocketConnection(discordSdk.channelId || "vc-room", currentUser || {
+      id: `user-${Math.random().toString(36).substring(2, 7)}`,
+      username: "Member"
+    });
 
     // Subscribe to Discord Activity participants update
     try {
@@ -1077,7 +1195,135 @@ async function setupDiscordSdk() {
     }
   } catch (sdkError) {
     console.info("Discord SDK not running in Discord client iframe; running standalone mode.", sdkError);
+    initSocketConnection("standalone-room", {
+      id: `dev-${Math.random().toString(36).substring(2, 7)}`,
+      username: "DevTester"
+    });
   }
+}
+
+/**
+ * Spawns a floating reaction bubble on top of the wheel with audio chirp
+ */
+function spawnFloatingReaction(username, emoji) {
+  if (!floatingReactionsContainer) return;
+
+  const bubble = document.createElement("div");
+  bubble.className = "floating-bubble";
+  const randomLeft = 20 + Math.random() * 55;
+  bubble.style.left = `${randomLeft}%`;
+
+  bubble.innerHTML = `
+    <span class="floating-emoji">${emoji}</span>
+    <span class="floating-user">@${username || "Friend"}</span>
+  `;
+
+  floatingReactionsContainer.appendChild(bubble);
+  playReactionSound();
+
+  setTimeout(() => {
+    if (bubble.parentNode) {
+      bubble.parentNode.removeChild(bubble);
+    }
+  }, 2400);
+}
+
+function playReactionSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx || isMusicMuted) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(540, now);
+    osc.frequency.exponentialRampToValueAtTime(840, now + 0.14);
+    gain.gain.setValueAtTime(0.035, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.15);
+  } catch (e) {}
+}
+
+/**
+ * Synchronizes room state received from server across UI components
+ */
+function syncRoomState(state) {
+  if (!state) return;
+  currentRoomState = state;
+
+  // 1. Update Giveaway Prize
+  if (state.giveaway && state.giveaway.prize) {
+    if (prizeTitleText) prizeTitleText.textContent = state.giveaway.prize;
+    if (tickerPrize) tickerPrize.textContent = `Prize: ${state.giveaway.prize}`;
+  }
+
+  // 2. Update Elimination Mode Status
+  if (state.settings && typeof state.settings.eliminationMode === "boolean") {
+    const isElim = state.settings.eliminationMode;
+    if (eliminationStatusLabel) {
+      eliminationStatusLabel.textContent = `Elimination: ${isElim ? "ON" : "OFF"}`;
+    }
+    if (eliminationStatusDot) {
+      eliminationStatusDot.className = isElim ? "status-dot-active" : "status-dot-inactive";
+    }
+  }
+
+  // 3. Update Host Indicator & Online Count
+  const myId = auth?.user?.id || socket?.userId;
+  if (rosterHostPill) {
+    if (state.hostUserId && myId && state.hostUserId === myId) {
+      rosterHostPill.textContent = "👑 You are Host";
+      rosterHostPill.style.display = "inline-block";
+    } else {
+      const host = state.participants?.find((p) => p.id === state.hostUserId);
+      rosterHostPill.textContent = `👑 Host: @${host?.username || 'Host'}`;
+      rosterHostPill.style.display = "inline-block";
+    }
+  }
+
+  // 4. Update Mode Tabs & Wheel Segments
+  const activePreset = state.activePresetId || "giveaway";
+  if (activePreset === "giveaway" || activePreset === "players") {
+    currentMode = "members";
+    tabMembers.classList.add("active");
+    tabMembers.setAttribute("aria-selected", "true");
+    tabItems.classList.remove("active");
+    tabItems.setAttribute("aria-selected", "false");
+  } else {
+    currentMode = "items";
+    tabItems.classList.add("active");
+    tabItems.setAttribute("aria-selected", "true");
+    tabMembers.classList.remove("active");
+    tabMembers.setAttribute("aria-selected", "false");
+  }
+
+  if (Array.isArray(state.wheelSegments) && state.wheelSegments.length > 0) {
+    applyServerSegments(state.wheelSegments, currentMode);
+  }
+}
+
+/**
+ * Applies backend segments to the active mode and re-renders
+ */
+function applyServerSegments(segments, mode) {
+  if (!Array.isArray(segments) || segments.length === 0) return;
+
+  const targetMode = mode || currentMode;
+  const mapped = segments.map((s, index) => ({
+    id: s.id || `seg-${index}`,
+    label: s.label || `@User${index + 1}`,
+    sub: s.sub || null,
+    icon: s.icon || null,
+    avatar: s.avatar || (targetMode === "members" ? `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80` : null),
+    colorTheme: s.colorTheme !== undefined ? s.colorTheme : index % 3,
+    color: s.color || null,
+  }));
+
+  MODES[targetMode].slices = mapped;
+  renderWheel();
 }
 
 /**
@@ -1090,32 +1336,109 @@ function initSocketConnection(channelId, user) {
       path: "/api/socket.io",
       transports: ["websocket", "polling"],
     });
+    socket.channelId = channelId;
+    socket.userId = user?.id || null;
 
     socket.on("connect", () => {
       console.log("[Socket] Connected to backend room for VC channel:", channelId);
-      socket.emit("room:join", { channelId, user });
+      socket.emit("room:join", { channelId, user }, (response) => {
+        if (response && response.success && response.state) {
+          syncRoomState(response.state);
+        }
+      });
     });
 
     socket.on("room:state", (state) => {
-      if (state && Array.isArray(state.wheelSegments) && state.wheelSegments.length > 0) {
-        setParticipants(state.wheelSegments);
+      syncRoomState(state);
+    });
+
+    socket.on("wheel:segments_updated", ({ segments, activePresetId }) => {
+      if (activePresetId === "giveaway" || activePresetId === "players") {
+        currentMode = "members";
+        tabMembers.classList.add("active");
+        tabItems.classList.remove("active");
+      } else if (activePresetId === "items" || activePresetId === "default_prizes") {
+        currentMode = "items";
+        tabItems.classList.add("active");
+        tabMembers.classList.remove("active");
+      }
+      applyServerSegments(segments, currentMode);
+    });
+
+    socket.on("room:user_joined", ({ participant, participants, hostUserId }) => {
+      if (participant) {
+        console.log(`[Room] ${participant.username} joined.`);
+      }
+      if (currentRoomState) {
+        currentRoomState.participants = participants;
+        if (hostUserId) currentRoomState.hostUserId = hostUserId;
+        syncRoomState(currentRoomState);
       }
     });
 
-    socket.on("wheel:segments_updated", ({ segments }) => {
-      if (Array.isArray(segments) && segments.length > 0) {
-        setParticipants(segments);
-      }
-    });
-
-    socket.on("room:user_joined", ({ participants }) => {
-      if (Array.isArray(participants) && participants.length > 0) {
-        setParticipants(participants);
+    socket.on("room:user_left", ({ username, newHostId, participants }) => {
+      console.log(`[Room] ${username} left.`);
+      if (currentRoomState) {
+        currentRoomState.participants = participants;
+        if (newHostId) currentRoomState.hostUserId = newHostId;
+        syncRoomState(currentRoomState);
       }
     });
 
     socket.on("wheel:spin_started", (spinData) => {
+      spinStatusText.textContent = `${spinData.spinnerName || "Someone"} is spinning...`;
       spinWheel(spinData.targetAngle, spinData.durationMs, spinData.winningSegment);
+    });
+
+    socket.on("wheel:spin_ended", (data) => {
+      if (data && Array.isArray(data.currentSegments) && data.currentSegments.length > 0) {
+        applyServerSegments(data.currentSegments, currentMode);
+      }
+      if (data && data.giveawayWinner) {
+        tickerName.textContent = data.giveawayWinner.winner?.username || "@Winner";
+        tickerPrize.textContent = `won ${data.giveawayWinner.prize || 'Prize'}`;
+      }
+    });
+
+    socket.on("giveaway:winner_drawn", (data) => {
+      if (data && data.winner) {
+        tickerName.textContent = data.winner.username || "@Winner";
+        tickerPrize.textContent = `won ${data.prize || 'Giveaway'}`;
+      }
+    });
+
+    socket.on("giveaway:prize_updated", ({ prize }) => {
+      if (prizeTitleText) prizeTitleText.textContent = prize;
+      if (tickerPrize) tickerPrize.textContent = `Prize: ${prize}`;
+    });
+
+    socket.on("giveaway:options_updated", ({ giveaway, segments }) => {
+      if (giveaway && typeof giveaway.eliminationMode === "boolean") {
+        if (eliminationStatusLabel) eliminationStatusLabel.textContent = `Elimination: ${giveaway.eliminationMode ? "ON" : "OFF"}`;
+        if (eliminationStatusDot) eliminationStatusDot.className = giveaway.eliminationMode ? "status-dot-active" : "status-dot-inactive";
+      }
+      if (Array.isArray(segments) && segments.length > 0) {
+        applyServerSegments(segments, currentMode);
+      }
+    });
+
+    socket.on("giveaway:reset", ({ segments }) => {
+      if (Array.isArray(segments) && segments.length > 0) {
+        applyServerSegments(segments, currentMode);
+      }
+    });
+
+    socket.on("game:reaction", ({ username, emoji }) => {
+      spawnFloatingReaction(username, emoji);
+    });
+
+    socket.on("wheel:error", ({ message }) => {
+      spinStatusText.textContent = message || "Cannot spin right now";
+      btnSpin.disabled = false;
+      btnSpinText.textContent = "SPIN THE WHEEL";
+      setTimeout(() => {
+        spinStatusText.textContent = "Ready to spin";
+      }, 3000);
     });
   } catch (err) {
     console.warn("[Socket] Could not connect to socket server:", err);

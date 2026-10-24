@@ -8,7 +8,12 @@ import { setupSocketHandler } from "./game/socketHandler.js";
 import { roomManager } from "./game/RoomManager.js";
 import { PRESET_WHEELS } from "./game/presets.js";
 
-dotenv.config({ path: "../.env" });
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -18,19 +23,8 @@ app.use(express.json());
 
 const httpServer = http.createServer(app);
 
-httpServer.on("request", (req, res) => {
-  if (req.url && req.url.startsWith("/api/socket.io")) {
-    req.url = req.url.replace("/api/socket.io", "/socket.io");
-  }
-});
-
-httpServer.on("upgrade", (req, socket, head) => {
-  if (req.url && req.url.startsWith("/api/socket.io")) {
-    req.url = req.url.replace("/api/socket.io", "/socket.io");
-  }
-});
-
 const io = new Server(httpServer, {
+  path: "/api/socket.io",
   cors: {
     origin: "*",
     methods: ["GET", "POST"]

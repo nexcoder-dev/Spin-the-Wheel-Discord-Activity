@@ -1600,3 +1600,245 @@ body.light-theme .slice-text {
 body.light-theme .slice-path {
   stroke: rgba(0, 0, 0, 0.08);
 }
+
+/* ==========================================================================
+   GIVEAWAY PRIZE & QUICK ROOM CONTROLS
+   ========================================================================== */
+.giveaway-prize-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.15rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  transition: var(--transition-smooth);
+}
+
+.giveaway-prize-card:hover {
+  border-color: var(--border-amethyst);
+}
+
+.prize-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.prize-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent-purple-bright);
+}
+
+.prize-title-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prize-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.btn-prize-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.4rem 0.65rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-prize-action:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.4);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.btn-danger-action:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.btn-icon-sm {
+  width: 14px;
+  height: 14px;
+}
+
+.status-dot-active {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  display: inline-block;
+}
+
+.status-dot-inactive {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #64748b;
+  display: inline-block;
+}
+
+.roster-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.roster-host-pill {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  color: #facc15;
+}
+
+/* ==========================================================================
+   LIVE MULTIPLAYER REACTIONS / CHEERS
+   ========================================================================== */
+.reactions-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.9rem;
+  margin-top: 0.75rem;
+}
+
+.reactions-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.reactions-list {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.reaction-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  font-size: 1.15rem;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.15s;
+  line-height: 1;
+}
+
+.reaction-pill:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.45);
+  transform: scale(1.22);
+}
+
+.reaction-pill:active {
+  transform: scale(0.92);
+}
+
+/* Floating Reactions on top of Wheel Stage */
+.floating-reactions-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 20;
+}
+
+.floating-bubble {
+  position: absolute;
+  bottom: 15%;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(24, 24, 29, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  border-radius: 9999px;
+  padding: 0.4rem 0.75rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(168, 85, 247, 0.3);
+  animation: floatUpAndFade 2.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.floating-emoji {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.floating-user {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-purple-bright);
+}
+
+@keyframes floatUpAndFade {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 30px, 0) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1.08);
+  }
+  25% {
+    transform: translate3d(0, -10px, 0) scale(1);
+  }
+  75% {
+    opacity: 0.95;
+    transform: translate3d(0, -90px, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -150px, 0) scale(0.8);
+  }
+}
+
+body.light-theme .giveaway-prize-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-theme .btn-prize-action {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #334155;
+}
+
+body.light-theme .floating-bubble {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(168, 85, 247, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
