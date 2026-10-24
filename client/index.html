@@ -2,12 +2,274 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hello, World</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Spin the Wheel — Discord Activity</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Background Ambient Glows -->
+      <div class="ambient-glow ambient-glow-1" aria-hidden="true"></div>
+      <div class="ambient-glow ambient-glow-2" aria-hidden="true"></div>
+      <div class="ambient-grid" aria-hidden="true"></div>
+
+      <!-- Top Navigation & User Display -->
+      <header class="app-header">
+        <div class="user-display" id="user-display">
+          <div class="avatar-wrapper">
+            <img
+              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80"
+              alt="User Avatar"
+              class="user-avatar"
+              id="user-avatar"
+            />
+            <span class="status-indicator" title="Online in Voice"></span>
+          </div>
+          <div class="user-meta">
+            <span class="user-greeting">Welcome back,</span>
+            <div class="user-name-wrapper">
+              <span class="user-name" id="user-name">Alex Rivera</span>
+              <span class="user-tag" id="user-tag">@alex.rivera</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-badges">
+          <div class="channel-badge" id="channel-badge">
+            <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" x2="12" y1="19" y2="22" />
+            </svg>
+            <span id="channel-name-text">Voice Channel: #hangout</span>
+          </div>
+          <div class="activity-status-pill">
+            <span class="pulse-dot"></span>
+            <span>LIVE SESSION</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Stage: Asymmetric Editorial Layout -->
+      <main class="main-layout">
+        <!-- Left Column: Editorial Content & Controls -->
+        <section class="editorial-column">
+          <div class="kicker-group">
+            <span class="kicker-tag">DISCORD ACTIVITY</span>
+            <span class="kicker-divider">•</span>
+            <span class="kicker-sub">SEASON 04 REWARDS</span>
+          </div>
+
+          <h1 class="hero-title">
+            SPIN THE<br />
+            <span class="gradient-text">WHEEL.</span>
+          </h1>
+
+          <p class="hero-description">
+            Live interactive server drops and giveaways. Spin the wheel in real-time with everyone in voice.
+          </p>
+
+          <!-- Mode Switcher Tabs -->
+          <div class="mode-tabs-container">
+            <span class="control-label">SELECT MODE</span>
+            <div class="mode-tabs" role="tablist" aria-label="Wheel Mode Selector">
+              <button
+                class="mode-tab active"
+                id="tab-members"
+                role="tab"
+                aria-selected="true"
+                data-mode="members"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <span>Member Giveaway</span>
+              </button>
+              <button
+                class="mode-tab"
+                id="tab-items"
+                role="tab"
+                aria-selected="false"
+                data-mode="items"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <span>Item Drops</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Active Participants / Slices Preview Roster -->
+          <div class="roster-card">
+            <div class="roster-header">
+              <span class="roster-title" id="roster-title">Active Contenders (8)</span>
+              <span class="roster-hint">Even 45° Slices</span>
+            </div>
+            <div class="roster-chips" id="roster-chips">
+              <!-- Dynamically populated via JS -->
+            </div>
+          </div>
+
+          <!-- Controls Section -->
+          <div class="action-controls">
+            <button class="btn-spin-wheel" id="btn-spin">
+              <span class="btn-glow-layer"></span>
+              <span class="btn-shine"></span>
+              <span class="btn-content">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="spin-icon">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span class="btn-text" id="btn-spin-text">SPIN THE WHEEL</span>
+              </span>
+            </button>
+
+            <div class="controls-meta-bar">
+              <div class="status-indicator-inline">
+                <span class="status-sparkle">✦</span>
+                <span id="spin-status-text">Ready to spin</span>
+              </div>
+              <button class="btn-test-angle" id="btn-test-angle" title="Test a specific angle or simulate backend payload">
+                <span>Simulate Angle</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Live Feed / Previous Winner Ticker -->
+          <div class="recent-winner-ticker">
+            <div class="ticker-badge">LAST WINNER</div>
+            <div class="ticker-content">
+              <span class="ticker-name" id="ticker-name">@Jordan</span>
+              <span class="ticker-prize" id="ticker-prize">won Discord Nitro</span>
+              <span class="ticker-time">2m ago</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right Column: The Hero Wheel Stage -->
+        <section class="wheel-stage-column">
+          <div class="wheel-wrapper">
+            <!-- Ambient Violet Halo behind wheel -->
+            <div class="wheel-halo" aria-hidden="true"></div>
+
+            <!-- Outer Metallic Bezel Ring -->
+            <div class="wheel-bezel">
+              <!-- Minute tick marks around bezel ring -->
+              <div class="bezel-ticks" id="bezel-ticks" aria-hidden="true"></div>
+
+              <!-- Top Center Pin / Pointer (Indicator at 12 o'clock) -->
+              <div class="wheel-pointer" id="wheel-pointer">
+                <div class="pointer-needle"></div>
+                <div class="pointer-jewel"></div>
+              </div>
+
+              <!-- The Rotating Wheel Disc -->
+              <div class="wheel-disc-container" id="wheel-disc-container">
+                <svg
+                  id="wheel-svg"
+                  viewBox="0 0 500 500"
+                  class="wheel-svg"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <defs>
+                    <!-- Slice Gradient Dark 1 -->
+                    <linearGradient id="slice-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#221e2a" />
+                      <stop offset="100%" stop-color="#16141a" />
+                    </linearGradient>
+                    <!-- Slice Gradient Amethyst 2 -->
+                    <linearGradient id="slice-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#3b2552" />
+                      <stop offset="100%" stop-color="#241635" />
+                    </linearGradient>
+                    <!-- Slice Gradient Highlight 3 -->
+                    <linearGradient id="slice-grad-3" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#2b203a" />
+                      <stop offset="100%" stop-color="#191522" />
+                    </linearGradient>
+                    <!-- Center Hub Glow -->
+                    <radialGradient id="hub-grad" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.3" />
+                      <stop offset="60%" stop-color="#18181b" />
+                      <stop offset="100%" stop-color="#0f0f12" />
+                    </radialGradient>
+                    <!-- Drop Shadow for Slices -->
+                    <filter id="slice-inset-shadow" x="-10%" y="-10%" width="120%" height="120%">
+                      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#000" flood-opacity="0.4" />
+                    </filter>
+                  </defs>
+
+                  <!-- Slices rendered dynamically by JS -->
+                  <g id="wheel-slices-group"></g>
+                </svg>
+
+                <!-- Center Glassmorphic Hub -->
+                <div class="wheel-center-hub">
+                  <div class="hub-outer-ring"></div>
+                  <div class="hub-core">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="hub-sparkle">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Winner Modal / Overlay -->
+      <div class="winner-modal-overlay" id="winner-modal" aria-hidden="true">
+        <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+        <div class="winner-modal-card" role="dialog" aria-modal="true" aria-labelledby="winner-title">
+          <div class="modal-glow-edge"></div>
+          <button class="modal-close-btn" id="modal-close-btn" aria-label="Close modal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+
+          <div class="modal-badge-wrapper">
+            <div class="modal-kicker">
+              <span class="trophy-sparkle">✦</span>
+              <span>VERIFIED OUTCOME</span>
+            </div>
+          </div>
+
+          <div class="winner-avatar-container">
+            <div class="winner-avatar-ring"></div>
+            <div class="winner-avatar-core" id="winner-avatar-box">
+              <img src="" alt="Winner Avatar" id="winner-avatar-img" class="winner-avatar-img" style="display: none;" />
+              <span class="winner-avatar-fallback" id="winner-avatar-text">👑</span>
+            </div>
+          </div>
+
+          <h2 class="winner-title" id="winner-title">THE WINNER IS</h2>
+          <div class="winner-name-display" id="winner-name-display">@Jordan</div>
+          <p class="winner-subtitle" id="winner-subtitle">
+            Selected by community spin in <span class="highlight-text">#hangout</span>
+          </p>
+
+          <div class="winner-actions">
+            <button class="btn-dismiss-modal" id="btn-modal-dismiss">
+              <span>Close</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Module Script -->
     <script type="module" src="/main.js"></script>
   </body>
 </html>
