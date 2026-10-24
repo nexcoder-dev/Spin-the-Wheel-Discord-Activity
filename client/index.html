@@ -50,6 +50,16 @@
             </svg>
             <span id="channel-name-text">Voice Channel: #hangout</span>
           </div>
+          <button class="header-contenders-btn" id="contenders-toggle-btn" aria-label="Toggle Active Contenders" title="View Active Contenders & Drops">
+            <svg class="contenders-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <span class="contenders-btn-text" id="contenders-btn-text">Contenders</span>
+            <span class="contenders-count-badge" id="contenders-count-badge">8</span>
+          </button>
           <div class="activity-status-pill">
             <span class="pulse-dot"></span>
             <span>LIVE SESSION</span>
@@ -81,6 +91,12 @@
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
           </button>
+          <button class="settings-toggle-btn" id="settings-toggle-btn" aria-label="Wheel Settings" title="Wheel Settings">
+            <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -95,7 +111,13 @@
 
           <!-- Mode Switcher Tabs -->
           <div class="mode-tabs-container">
-            <span class="control-label">SELECT MODE</span>
+            <div class="control-label-row">
+              <span class="control-label">SELECT MODE</span>
+              <span class="control-live-tag">
+                <span class="live-dot" aria-hidden="true"></span>
+                <span>Active Lobby</span>
+              </span>
+            </div>
             <div class="mode-tabs" role="tablist" aria-label="Wheel Mode Selector">
               <button
                 class="mode-tab active"
@@ -104,13 +126,19 @@
                 aria-selected="true"
                 data-mode="members"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                <span>Member Giveaway</span>
+                <div class="tab-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <div class="tab-meta">
+                  <span class="tab-name">Member Giveaway</span>
+                  <span class="tab-sub">Voice lobby contenders</span>
+                </div>
+                <span class="tab-badge" id="tab-members-badge">8</span>
               </button>
               <button
                 class="mode-tab"
@@ -119,44 +147,50 @@
                 aria-selected="false"
                 data-mode="items"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-                <span>Item Drops</span>
+                <div class="tab-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                </div>
+                <div class="tab-meta">
+                  <span class="tab-name">Item Drops</span>
+                  <span class="tab-sub">Server prizes & loot</span>
+                </div>
+                <span class="tab-badge" id="tab-items-badge">6</span>
               </button>
             </div>
           </div>
 
-          <!-- Active Participants / Slices Preview Roster -->
-          <div class="roster-card">
-            <div class="roster-header">
-              <span class="roster-title" id="roster-title">Active Contenders (8)</span>
-              <span class="roster-hint">Even 45° Slices</span>
-            </div>
-            <div class="roster-chips" id="roster-chips">
-              <!-- Dynamically populated via JS -->
-            </div>
-          </div>
-
-          <!-- Controls Section -->
+          <!-- Master Action Controls -->
           <div class="action-controls">
-            <button class="btn-spin-wheel" id="btn-spin">
+            <button class="btn-spin-wheel btn-liquid-metal" id="btn-spin">
               <span class="btn-glow-layer"></span>
+              <span class="btn-liquid-metal-sheen" aria-hidden="true"></span>
+              <span class="btn-pulse-ring" aria-hidden="true"></span>
               <span class="btn-shine"></span>
               <span class="btn-content">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="spin-icon">
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                </svg>
+                <div class="spin-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="spin-icon">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                </div>
                 <span class="btn-text" id="btn-spin-text">SPIN THE WHEEL</span>
               </span>
             </button>
 
             <div class="controls-meta-bar">
-              <div class="status-indicator-inline">
+              <div class="status-indicator-inline" id="status-pill">
+                <span class="status-beacon">
+                  <span class="beacon-core"></span>
+                  <span class="beacon-halo"></span>
+                </span>
                 <span class="status-sparkle">✦</span>
                 <span id="spin-status-text">Ready to spin</span>
               </div>
               <button class="btn-test-angle" id="btn-test-angle" title="Test a specific angle or simulate backend payload">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="test-icon">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
                 <span>Simulate Angle</span>
               </button>
             </div>
@@ -164,7 +198,10 @@
 
           <!-- Live Feed / Previous Winner Ticker -->
           <div class="recent-winner-ticker">
-            <div class="ticker-badge">LAST WINNER</div>
+            <div class="ticker-badge">
+              <span class="ticker-sparkle">👑</span>
+              <span>LAST WINNER</span>
+            </div>
             <div class="ticker-content">
               <span class="ticker-name" id="ticker-name">@Jordan</span>
               <span class="ticker-prize" id="ticker-prize">won Discord Nitro</span>
@@ -227,6 +264,49 @@
                       <stop offset="0%" stop-color="#f8fafc" />
                       <stop offset="100%" stop-color="#e2e8f0" />
                     </linearGradient>
+
+                    <!-- Amethyst Glow Gradients -->
+                    <linearGradient id="slice-grad-amethyst-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#3b0764" />
+                      <stop offset="100%" stop-color="#1e053a" />
+                    </linearGradient>
+                    <linearGradient id="slice-grad-amethyst-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#581c87" />
+                      <stop offset="100%" stop-color="#3b0764" />
+                    </linearGradient>
+                    <linearGradient id="slice-grad-amethyst-3" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#4c1d95" />
+                      <stop offset="100%" stop-color="#2e1065" />
+                    </linearGradient>
+
+                    <!-- Cyber Sunset Gradients -->
+                    <linearGradient id="slice-grad-cyber-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#be185d" />
+                      <stop offset="100%" stop-color="#831843" />
+                    </linearGradient>
+                    <linearGradient id="slice-grad-cyber-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#0284c7" />
+                      <stop offset="100%" stop-color="#075985" />
+                    </linearGradient>
+                    <linearGradient id="slice-grad-cyber-3" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#7c3aed" />
+                      <stop offset="100%" stop-color="#4c1d95" />
+                    </linearGradient>
+
+                    <!-- Minimal Charcoal Gradients -->
+                    <linearGradient id="slice-grad-minimal-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#27272a" />
+                      <stop offset="100%" stop-color="#18181b" />
+                    </linearGradient>
+                    <linearGradient id="slice-grad-minimal-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#3f3f46" />
+                      <stop offset="100%" stop-color="#27272a" />
+                    </linearGradient>
+                    <linearGradient id="slice-grad-minimal-3" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#1e1e24" />
+                      <stop offset="100%" stop-color="#121216" />
+                    </linearGradient>
+
                     <!-- Center Hub Glow -->
                     <radialGradient id="hub-grad" cx="50%" cy="50%" r="50%">
                       <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.3" />
@@ -298,6 +378,264 @@
             <button class="btn-dismiss-modal" id="btn-modal-dismiss">
               <span>Close</span>
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Contenders / Drop Pool Modal -->
+      <div class="contenders-modal-overlay" id="contenders-modal" aria-hidden="true">
+        <div class="contenders-modal-card" role="dialog" aria-modal="true" aria-labelledby="roster-title">
+          <div class="contenders-modal-ambient" aria-hidden="true"></div>
+          
+          <div class="contenders-modal-header">
+            <div class="contenders-header-title-group">
+              <div class="contenders-icon-bubble">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-users-svg">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+              <div class="contenders-header-text">
+                <div class="contenders-title-row">
+                  <span class="contenders-pulse-dot" aria-hidden="true"></span>
+                  <h2 class="contenders-modal-title" id="roster-title">Active Contenders (8)</h2>
+                </div>
+                <div class="contenders-modal-subtitle" id="roster-subtitle">Eligible contenders in voice channel</div>
+              </div>
+            </div>
+
+            <div class="contenders-header-actions">
+              <div class="roster-hint-pill" id="roster-hint">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="hint-icon">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
+                <span id="roster-hint-text">Even 45° Slices</span>
+              </div>
+              <button class="contenders-close-btn" id="contenders-close-btn" aria-label="Close Contenders">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="contenders-modal-body">
+            <!-- Host Drop Pool Customizer Section (Visible in Item Drops mode) -->
+            <div class="drop-pool-host-controls" id="drop-pool-host-controls" style="display: none;">
+              <div class="host-controls-banner">
+                <div class="host-banner-left">
+                  <span class="host-crown-badge">👑 HOST PRIVILEGE</span>
+                  <span class="host-banner-text">Add custom items or delete prizes from the wheel</span>
+                </div>
+                <button type="button" class="btn-reset-drops" id="btn-reset-drops" title="Reset to standard default drops">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="reset-icon">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  <span>Reset</span>
+                </button>
+              </div>
+
+              <form class="add-drop-item-form" id="add-drop-item-form">
+                <div class="add-item-inputs">
+                  <div class="emoji-picker-field">
+                    <input type="text" id="new-item-icon" class="item-input-icon" value="🎁" maxlength="2" title="Item Emoji / Icon" />
+                  </div>
+                  <div class="name-field">
+                    <input type="text" id="new-item-label" class="item-input-label" placeholder="Prize Name (e.g. 500 Coins, Nitro)" maxlength="24" required />
+                  </div>
+                  <div class="sub-field">
+                    <input type="text" id="new-item-sub" class="item-input-sub" placeholder="Subtitle / Rarity (optional)" maxlength="20" />
+                  </div>
+                  <button type="submit" class="btn-add-item" id="btn-add-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="add-icon">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>Add Item</span>
+                  </button>
+                </div>
+
+                <!-- Quick Emoji Selection Row -->
+                <div class="quick-emoji-row">
+                  <span class="quick-emoji-label">Quick icons:</span>
+                  <div class="quick-emojis">
+                    <button type="button" class="quick-emoji-btn" data-emoji="🎁">🎁</button>
+                    <button type="button" class="quick-emoji-btn" data-emoji="💎">💎</button>
+                    <button type="button" class="quick-emoji-btn" data-emoji="👑">👑</button>
+                    <button type="button" class="quick-emoji-btn" data-emoji="🪙">🪙</button>
+                    <button type="button" class="quick-emoji-btn" data-emoji="🚀">🚀</button>
+                    <button type="button" class="quick-emoji-btn" data-emoji="🎮">🎮</button>
+                    <button type="button" class="quick-emoji-btn" data-emoji="🍕">🍕</button>
+                    <button type="button" class="quick-emoji-btn" data-emoji="🏆">🏆</button>
+                    <button type="button" class="quick-emoji-btn" data-emoji="✨">✨</button>
+                    <button type="button" class="quick-emoji-btn" data-emoji="🔥">🔥</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <div class="roster-chips" id="roster-chips">
+              <!-- Dynamically populated via JS -->
+            </div>
+          </div>
+
+          <div class="contenders-modal-footer">
+            <div class="contenders-status-sync">
+              <span class="sync-dot"></span>
+              <span id="contenders-sync-text">Live Voice Channel Sync Active</span>
+            </div>
+            <button class="btn-contenders-done" id="btn-contenders-done">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wheel Settings Modal / Drawer -->
+      <div class="settings-modal-overlay" id="settings-modal" aria-hidden="true">
+        <div class="settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+          <div class="settings-header">
+            <div class="settings-title-group">
+              <svg class="settings-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              <h2 class="settings-title" id="settings-title">Wheel Settings</h2>
+            </div>
+            <button class="settings-close-btn" id="settings-close-btn" aria-label="Close settings">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="settings-notice">
+            <svg class="notice-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <span>Only the host can change these</span>
+          </div>
+
+          <div class="settings-items-list">
+            <!-- 1. Host Only Spin -->
+            <div class="setting-item-card">
+              <div class="setting-item-main">
+                <div class="setting-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="setting-svg-icon">
+                    <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+                  </svg>
+                </div>
+                <div class="setting-info">
+                  <div class="setting-name">Host Only Spin</div>
+                  <div class="setting-desc">Only the host can spin the wheel</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-host-only" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 2. Remove Winner -->
+            <div class="setting-item-card">
+              <div class="setting-item-main">
+                <div class="setting-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="setting-svg-icon">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </div>
+                <div class="setting-info">
+                  <div class="setting-name">Remove Winner</div>
+                  <div class="setting-desc">Remove selected winner from entries</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-remove-winner" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 3. Show Confetti -->
+            <div class="setting-item-card">
+              <div class="setting-item-main">
+                <div class="setting-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="setting-svg-icon">
+                    <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z" />
+                  </svg>
+                </div>
+                <div class="setting-info">
+                  <div class="setting-name">Show Confetti</div>
+                  <div class="setting-desc">Celebrate with effects</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-show-confetti" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 4. Spin Duration -->
+            <div class="setting-item-card setting-select-card">
+              <div class="setting-item-main">
+                <div class="setting-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="setting-svg-icon">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <div class="setting-info">
+                  <div class="setting-name">Spin Duration</div>
+                  <div class="setting-desc">Duration of spin animation</div>
+                </div>
+              </div>
+              <div class="setting-select-wrapper">
+                <select id="setting-spin-duration" class="setting-dropdown">
+                  <option value="3000">3 seconds</option>
+                  <option value="5000" selected>5 seconds</option>
+                  <option value="8000">8 seconds</option>
+                  <option value="10000">10 seconds</option>
+                </select>
+                <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- 5. Wheel Style -->
+            <div class="setting-item-card setting-select-card">
+              <div class="setting-item-main">
+                <div class="setting-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="setting-svg-icon">
+                    <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+                    <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+                    <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+                    <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z" />
+                  </svg>
+                </div>
+                <div class="setting-info">
+                  <div class="setting-name">Wheel Style</div>
+                  <div class="setting-desc">Choose a visual theme</div>
+                </div>
+              </div>
+              <div class="setting-select-wrapper">
+                <select id="setting-wheel-style" class="setting-dropdown">
+                  <option value="neon" selected>Neon (Default)</option>
+                  <option value="amethyst">Amethyst Glow</option>
+                  <option value="cyber">Cyber Sunset</option>
+                  <option value="minimal">Minimal Charcoal</option>
+                </select>
+                <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
       </div>

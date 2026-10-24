@@ -6,6 +6,22 @@ import "./style.css";
    CONFIG & DATA SETS
    ========================================================================== */
 
+const DEFAULT_DROP_ITEMS = [
+  { id: "nitro", label: "Discord Nitro", sub: "1 Month Sub", icon: "💎", colorTheme: 1 },
+  { id: "vip", label: "VIP Role", sub: "Permanent", icon: "👑", colorTheme: 0 },
+  { id: "coins", label: "1,000 Coins", sub: "Server Currency", icon: "🪙", colorTheme: 2 },
+  { id: "badge", label: "Rare Badge", sub: "Profile Showcase", icon: "🎖️", colorTheme: 0 },
+  { id: "boost", label: "Server Boost", sub: "Level Up", icon: "🚀", colorTheme: 1 },
+  { id: "box", label: "Mystery Box", sub: "Random Loot", icon: "🎁", colorTheme: 2 },
+  { id: "title", label: "Custom Title", sub: "Role Color", icon: "✨", colorTheme: 0 },
+  { id: "spin_again", label: "Spin Again", sub: "Bonus Turn", icon: "🔄", colorTheme: 1 },
+];
+
+const savedCustomDrops = JSON.parse(localStorage.getItem("wheel-custom-drops") || "null");
+const initialDropSlices = Array.isArray(savedCustomDrops) && savedCustomDrops.length >= 2
+  ? savedCustomDrops
+  : DEFAULT_DROP_ITEMS;
+
 const MODES = {
   members: {
     title: "Member Giveaway Mode",
@@ -24,16 +40,7 @@ const MODES = {
   items: {
     title: "Item Drops Mode",
     rosterTitle: "Drop Pool",
-    slices: [
-      { id: "nitro", label: "Discord Nitro", sub: "1 Month Sub", icon: "💎", colorTheme: 1 },
-      { id: "vip", label: "VIP Role", sub: "Permanent", icon: "👑", colorTheme: 0 },
-      { id: "coins", label: "1,000 Coins", sub: "Server Currency", icon: "🪙", colorTheme: 2 },
-      { id: "badge", label: "Rare Badge", sub: "Profile Showcase", icon: "🎖️", colorTheme: 0 },
-      { id: "boost", label: "Server Boost", sub: "Level Up", icon: "🚀", colorTheme: 1 },
-      { id: "box", label: "Mystery Box", sub: "Random Loot", icon: "🎁", colorTheme: 2 },
-      { id: "title", label: "Custom Title", sub: "Role Color", icon: "✨", colorTheme: 0 },
-      { id: "spin_again", label: "Spin Again", sub: "Bonus Turn", icon: "🔄", colorTheme: 1 },
-    ],
+    slices: initialDropSlices,
   },
 };
 
@@ -58,6 +65,24 @@ const rosterChips = document.getElementById("roster-chips");
 const tabMembers = document.getElementById("tab-members");
 const tabItems = document.getElementById("tab-items");
 
+// Contenders Modal Elements
+const contendersModal = document.getElementById("contenders-modal");
+const contendersToggleBtn = document.getElementById("contenders-toggle-btn");
+const contendersCloseBtn = document.getElementById("contenders-close-btn");
+const btnContendersDone = document.getElementById("btn-contenders-done");
+const contendersCountBadge = document.getElementById("contenders-count-badge");
+const contendersBtnText = document.getElementById("contenders-btn-text");
+const rosterSubtitle = document.getElementById("roster-subtitle");
+const contendersSyncText = document.getElementById("contenders-sync-text");
+
+// Drop Pool Host Customizer Elements
+const dropPoolHostControls = document.getElementById("drop-pool-host-controls");
+const addDropItemForm = document.getElementById("add-drop-item-form");
+const newItemIcon = document.getElementById("new-item-icon");
+const newItemLabel = document.getElementById("new-item-label");
+const newItemSub = document.getElementById("new-item-sub");
+const btnResetDrops = document.getElementById("btn-reset-drops");
+
 // Winner Modal Elements
 const winnerModal = document.getElementById("winner-modal");
 const modalCloseBtn = document.getElementById("modal-close-btn");
@@ -72,11 +97,34 @@ const confettiCanvas = document.getElementById("confetti-canvas");
 const tickerName = document.getElementById("ticker-name");
 const tickerPrize = document.getElementById("ticker-prize");
 
-// Discord User & Channel Elements
-const userNameEl = document.getElementById("user-name");
-const userTagEl = document.getElementById("user-tag");
-const userAvatarEl = document.getElementById("user-avatar");
-const channelNameText = document.getElementById("channel-name-text");
+// Wheel Settings State & Storage
+const savedSettings = JSON.parse(localStorage.getItem("wheel-settings") || "{}");
+export const wheelSettings = {
+  hostOnlySpin: savedSettings.hostOnlySpin ?? true,
+  removeWinner: savedSettings.removeWinner ?? false,
+  showConfetti: savedSettings.showConfetti ?? true,
+  spinDuration: savedSettings.spinDuration ?? 5000,
+  wheelStyle: savedSettings.wheelStyle ?? "neon",
+};
+let currentRoomHostUserId = null;
+
+export function isHostUser() {
+  if (!currentRoomHostUserId) return true; // Standalone or local mode: current user is host
+  if (auth && auth.user && auth.user.id) {
+    return auth.user.id === currentRoomHostUserId;
+  }
+  return true;
+}
+
+// Settings Modal Elements
+const settingsModal = document.getElementById("settings-modal");
+const settingsToggleBtn = document.getElementById("settings-toggle-btn");
+const settingsCloseBtn = document.getElementById("settings-close-btn");
+const settingHostOnly = document.getElementById("setting-host-only");
+const settingRemoveWinner = document.getElementById("setting-remove-winner");
+const settingShowConfetti = document.getElementById("setting-show-confetti");
+const settingSpinDuration = document.getElementById("setting-spin-duration");
+const settingWheelStyle = document.getElementById("setting-wheel-style");
 
 /* ==========================================================================
    WEB AUDIO HARMONICS & CALM AMBIENT SOUNDTRACK
@@ -342,19 +390,48 @@ function renderWheel() {
   // Clear existing slices
   wheelSlicesGroup.innerHTML = "";
 
-  // Color schemes for slice alternating patterns (light/dark adaptive)
+  // Color schemes for slice alternating patterns (light/dark & wheelStyle adaptive)
   const isLight = document.body.classList.contains("light-theme");
-  const colorThemes = isLight
-    ? [
-        { fill: "url(#slice-grad-light-1)", text: "#0f172a", sub: "#64748b" },
-        { fill: "url(#slice-grad-light-2)", text: "#4c1d95", sub: "#7c3aed" },
-        { fill: "url(#slice-grad-light-3)", text: "#1e293b", sub: "#475569" },
-      ]
-    : [
-        { fill: "url(#slice-grad-1)", text: "#f8fafc", sub: "#a1a1aa" },
-        { fill: "url(#slice-grad-2)", text: "#f5d0fe", sub: "#c084fc" },
-        { fill: "url(#slice-grad-3)", text: "#e2e8f0", sub: "#94a3b8" },
-      ];
+  let colorThemes;
+  if (isLight) {
+    colorThemes = [
+      { fill: "url(#slice-grad-light-1)", text: "#0f172a", sub: "#64748b" },
+      { fill: "url(#slice-grad-light-2)", text: "#4c1d95", sub: "#7c3aed" },
+      { fill: "url(#slice-grad-light-3)", text: "#1e293b", sub: "#475569" },
+    ];
+  } else {
+    switch (wheelSettings.wheelStyle) {
+      case "amethyst":
+        colorThemes = [
+          { fill: "url(#slice-grad-amethyst-1)", text: "#f5d0fe", sub: "#e879f9" },
+          { fill: "url(#slice-grad-amethyst-2)", text: "#fae8ff", sub: "#c084fc" },
+          { fill: "url(#slice-grad-amethyst-3)", text: "#f3e8ff", sub: "#a855f7" },
+        ];
+        break;
+      case "cyber":
+        colorThemes = [
+          { fill: "url(#slice-grad-cyber-1)", text: "#fdf2f8", sub: "#f472b6" },
+          { fill: "url(#slice-grad-cyber-2)", text: "#f0f9ff", sub: "#38bdf8" },
+          { fill: "url(#slice-grad-cyber-3)", text: "#faf5ff", sub: "#c084fc" },
+        ];
+        break;
+      case "minimal":
+        colorThemes = [
+          { fill: "url(#slice-grad-minimal-1)", text: "#fafafa", sub: "#a1a1aa" },
+          { fill: "url(#slice-grad-minimal-2)", text: "#ffffff", sub: "#d4d4d8" },
+          { fill: "url(#slice-grad-minimal-3)", text: "#f4f4f5", sub: "#71717a" },
+        ];
+        break;
+      case "neon":
+      default:
+        colorThemes = [
+          { fill: "url(#slice-grad-1)", text: "#f8fafc", sub: "#a1a1aa" },
+          { fill: "url(#slice-grad-2)", text: "#f5d0fe", sub: "#c084fc" },
+          { fill: "url(#slice-grad-3)", text: "#e2e8f0", sub: "#94a3b8" },
+        ];
+        break;
+    }
+  }
 
   items.forEach((item, index) => {
     const startAngle = index * sliceAngle;
@@ -477,18 +554,72 @@ function renderRoster() {
   rosterTitle.textContent = `${currentData.rosterTitle} (${currentData.slices.length})`;
   rosterChips.innerHTML = "";
 
+  const hintTextEl = document.getElementById("roster-hint-text");
+  if (hintTextEl && currentData.slices.length > 0) {
+    const deg = (360 / currentData.slices.length).toFixed(currentData.slices.length === 8 ? 0 : 1);
+    hintTextEl.textContent = `Even ${deg}° Slices`;
+  }
+
+  const membersBadge = document.getElementById("tab-members-badge");
+  if (membersBadge && MODES.members) {
+    membersBadge.textContent = MODES.members.slices.length;
+  }
+  const itemsBadge = document.getElementById("tab-items-badge");
+  if (itemsBadge && MODES.items) {
+    itemsBadge.textContent = MODES.items.slices.length;
+  }
+
+  if (contendersCountBadge) {
+    contendersCountBadge.textContent = currentData.slices.length;
+  }
+  if (contendersBtnText) {
+    contendersBtnText.textContent = currentMode === "members" ? "Contenders" : "Drop Pool";
+  }
+  if (rosterSubtitle) {
+    rosterSubtitle.textContent = currentMode === "members"
+      ? "Eligible contenders in voice channel"
+      : "Active items and prizes in drop pool";
+  }
+  if (contendersSyncText) {
+    contendersSyncText.textContent = currentMode === "members"
+      ? "Live Voice Channel Sync Active"
+      : "Server Prize Pool Active";
+  }
+
+  if (dropPoolHostControls) {
+    if (currentMode === "items" && isHostUser()) {
+      dropPoolHostControls.style.display = "block";
+    } else {
+      dropPoolHostControls.style.display = "none";
+    }
+  }
+
+  const canDelete = currentMode === "items" && isHostUser();
+
   currentData.slices.forEach((slice) => {
     const chip = document.createElement("div");
     chip.className = "roster-chip";
+    chip.setAttribute("data-chip-id", slice.id);
     if (slice.avatar) {
       chip.innerHTML = `
-        <img class="roster-chip-pfp" src="${slice.avatar}" alt="${slice.label}" />
-        <span>${slice.label}</span>
+        <span class="roster-chip-avatar-wrap">
+          <img class="roster-chip-pfp" src="${slice.avatar}" alt="${slice.label}" />
+          <span class="roster-chip-status-ring"></span>
+        </span>
+        <span class="roster-chip-label">${slice.label}</span>
+      `;
+    } else if (slice.icon) {
+      chip.innerHTML = `
+        <span class="roster-chip-emoji">${slice.icon}</span>
+        <span class="roster-chip-label">${slice.label}</span>
+        ${slice.sub ? `<span class="roster-chip-sub" style="font-size:0.68rem; opacity:0.75; font-weight:500;">(${slice.sub})</span>` : ""}
+        ${canDelete ? `<button type="button" class="chip-delete-btn" data-delete-id="${slice.id}" title="Remove item from wheel">✕</button>` : ""}
       `;
     } else {
       chip.innerHTML = `
         <span class="roster-chip-dot"></span>
-        <span>${slice.label}</span>
+        <span class="roster-chip-label">${slice.label}</span>
+        ${canDelete ? `<button type="button" class="chip-delete-btn" data-delete-id="${slice.id}" title="Remove item from wheel">✕</button>` : ""}
       `;
     }
     rosterChips.appendChild(chip);
@@ -601,8 +732,10 @@ function renderBezelStuds() {
  * @param {number} duration - Duration in milliseconds (default: 5000ms).
  * @param {object|null} customWinner - Optional winner object override.
  */
-export function spinWheel(targetAngle = null, duration = 4800, customWinner = null) {
+export function spinWheel(targetAngle = null, duration = null, customWinner = null) {
   if (isSpinning) return;
+
+  const actualDuration = duration !== null ? duration : wheelSettings.spinDuration;
 
   isSpinning = true;
   spinCount++;
@@ -620,6 +753,12 @@ export function spinWheel(targetAngle = null, duration = 4800, customWinner = nu
   btnSpin.disabled = true;
   btnSpinText.textContent = "SPINNING...";
   spinStatusText.textContent = "Rolling physics deceleration...";
+
+  const statusPill = document.getElementById("status-pill");
+  if (statusPill) {
+    statusPill.classList.remove("has-winner");
+    statusPill.classList.add("is-spinning");
+  }
 
   const items = MODES[currentMode].slices;
   const numSlices = items.length;
@@ -658,11 +797,11 @@ export function spinWheel(targetAngle = null, duration = 4800, customWinner = nu
   currentRotation = nextRotation;
 
   // Apply CSS transition to the SVG
-  wheelSvg.style.transition = `transform ${duration}ms cubic-bezier(0.12, 0.8, 0.25, 1)`;
+  wheelSvg.style.transition = `transform ${actualDuration}ms cubic-bezier(0.12, 0.8, 0.25, 1)`;
   wheelSvg.style.transform = `rotate(${currentRotation}deg)`;
 
   // Simulate tick flutter on pointer during spin with mechanical audio clicks & chasing bezel lights
-  startPointerFlutter(duration);
+  startPointerFlutter(actualDuration);
 
   // Completion timer
   setTimeout(() => {
@@ -670,6 +809,11 @@ export function spinWheel(targetAngle = null, duration = 4800, customWinner = nu
     btnSpin.disabled = false;
     btnSpinText.textContent = "SPIN THE WHEEL";
     spinStatusText.textContent = `Landed on ${winner.label}`;
+
+    if (statusPill) {
+      statusPill.classList.remove("is-spinning");
+      statusPill.classList.add("has-winner");
+    }
 
     if (wheelWrapper) {
       wheelWrapper.classList.remove("is-spinning");
@@ -690,7 +834,19 @@ export function spinWheel(targetAngle = null, duration = 4800, customWinner = nu
     // Announce Winner via Modal, Chime & Confetti
     playVictoryChime();
     showWinnerModal(winner);
-  }, duration + 50);
+
+    // If Remove Winner is enabled:
+    if (wheelSettings.removeWinner && items.length > 2) {
+      setTimeout(() => {
+        const itemIdx = items.findIndex((s) => s.id === winner.id);
+        if (itemIdx !== -1) {
+          items.splice(itemIdx, 1);
+          renderWheel();
+          spinStatusText.textContent = `Removed ${winner.label} from entries`;
+        }
+      }, 1500);
+    }
+  }, actualDuration + 50);
 }
 
 // Expose spinWheel and mode controller globally on window for easy backend hookup
@@ -777,8 +933,10 @@ function showWinnerModal(winner) {
   winnerModal.classList.add("active");
   winnerModal.setAttribute("aria-hidden", "false");
 
-  // Launch celebratory confetti burst
-  launchConfetti();
+  // Launch celebratory confetti burst if showConfetti is enabled
+  if (wheelSettings.showConfetti) {
+    launchConfetti();
+  }
 }
 
 /**
@@ -928,8 +1086,13 @@ function stopConfetti() {
 // Global socket instance for multiplayer synchronisation with server.js
 let socket = null;
 
+
 // Spin Button Trigger
 btnSpin.addEventListener("click", () => {
+  if (wheelSettings.hostOnlySpin && !isHostUser()) {
+    spinStatusText.textContent = "Only the host can spin the wheel";
+    return;
+  }
   if (socket && socket.connected && discordSdk && discordSdk.channelId) {
     socket.emit("wheel:spin", { channelId: discordSdk.channelId });
   } else {
@@ -1100,6 +1263,30 @@ function initSocketConnection(channelId, user) {
       if (state && Array.isArray(state.wheelSegments) && state.wheelSegments.length > 0) {
         setParticipants(state.wheelSegments);
       }
+      if (state && state.hostUserId) {
+        currentRoomHostUserId = state.hostUserId;
+      }
+      if (state && state.settings) {
+        if (typeof state.settings.eliminationMode === "boolean") {
+          wheelSettings.removeWinner = state.settings.eliminationMode;
+        }
+        if (typeof state.settings.allowAnyoneToSpin === "boolean") {
+          wheelSettings.hostOnlySpin = !state.settings.allowAnyoneToSpin;
+        }
+        syncSettingsInputs();
+      }
+    });
+
+    socket.on("wheel:settings_updated", ({ settings }) => {
+      if (settings) {
+        if (typeof settings.eliminationMode === "boolean") {
+          wheelSettings.removeWinner = settings.eliminationMode;
+        }
+        if (typeof settings.allowAnyoneToSpin === "boolean") {
+          wheelSettings.hostOnlySpin = !settings.allowAnyoneToSpin;
+        }
+        syncSettingsInputs();
+      }
     });
 
     socket.on("wheel:segments_updated", ({ segments }) => {
@@ -1207,3 +1394,224 @@ window.addEventListener("keydown", handleFirstAudioInteraction, { once: true });
 
 // Setup initial UI indicator
 setMusicMuteState(isMusicMuted);
+
+/* ==========================================================================
+   WHEEL SETTINGS CONTROLLER
+   ========================================================================== */
+function syncSettingsInputs() {
+  if (settingHostOnly) settingHostOnly.checked = wheelSettings.hostOnlySpin;
+  if (settingRemoveWinner) settingRemoveWinner.checked = wheelSettings.removeWinner;
+  if (settingShowConfetti) settingShowConfetti.checked = wheelSettings.showConfetti;
+  if (settingSpinDuration) settingSpinDuration.value = String(wheelSettings.spinDuration);
+  if (settingWheelStyle) settingWheelStyle.value = wheelSettings.wheelStyle;
+}
+
+function initWheelSettings() {
+  syncSettingsInputs();
+
+  function saveSettings() {
+    localStorage.setItem("wheel-settings", JSON.stringify(wheelSettings));
+    if (socket && socket.connected && discordSdk && discordSdk.channelId) {
+      socket.emit("wheel:update_settings", {
+        channelId: discordSdk.channelId,
+        settings: {
+          eliminationMode: wheelSettings.removeWinner,
+          allowAnyoneToSpin: !wheelSettings.hostOnlySpin,
+          spinCooldownMs: wheelSettings.spinDuration,
+        },
+      });
+    }
+  }
+
+  settingHostOnly?.addEventListener("change", (e) => {
+    wheelSettings.hostOnlySpin = e.target.checked;
+    saveSettings();
+  });
+
+  settingRemoveWinner?.addEventListener("change", (e) => {
+    wheelSettings.removeWinner = e.target.checked;
+    saveSettings();
+  });
+
+  settingShowConfetti?.addEventListener("change", (e) => {
+    wheelSettings.showConfetti = e.target.checked;
+    saveSettings();
+  });
+
+  settingSpinDuration?.addEventListener("change", (e) => {
+    wheelSettings.spinDuration = parseInt(e.target.value, 10) || 5000;
+    saveSettings();
+  });
+
+  settingWheelStyle?.addEventListener("change", (e) => {
+    wheelSettings.wheelStyle = e.target.value || "neon";
+    saveSettings();
+    renderWheel();
+  });
+
+  function openSettings() {
+    settingsModal?.classList.add("active");
+    settingsModal?.setAttribute("aria-hidden", "false");
+  }
+
+  function closeSettings() {
+    settingsModal?.classList.remove("active");
+    settingsModal?.setAttribute("aria-hidden", "true");
+  }
+
+  settingsToggleBtn?.addEventListener("click", openSettings);
+  settingsCloseBtn?.addEventListener("click", closeSettings);
+
+  settingsModal?.addEventListener("click", (e) => {
+    if (e.target === settingsModal) {
+      closeSettings();
+    }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && settingsModal?.classList.contains("active")) {
+      closeSettings();
+    }
+  });
+}
+
+initWheelSettings();
+
+/* ==========================================================================
+   CONTENDERS MODAL CONTROLLER
+   ========================================================================== */
+function initContendersModal() {
+  function openContenders() {
+    contendersModal?.classList.add("active");
+    contendersModal?.setAttribute("aria-hidden", "false");
+    contendersToggleBtn?.classList.add("is-active");
+  }
+
+  function closeContenders() {
+    contendersModal?.classList.remove("active");
+    contendersModal?.setAttribute("aria-hidden", "true");
+    contendersToggleBtn?.classList.remove("is-active");
+  }
+
+  function toggleContenders() {
+    if (contendersModal?.classList.contains("active")) {
+      closeContenders();
+    } else {
+      openContenders();
+    }
+  }
+
+  contendersToggleBtn?.addEventListener("click", toggleContenders);
+  contendersCloseBtn?.addEventListener("click", closeContenders);
+  btnContendersDone?.addEventListener("click", closeContenders);
+
+  contendersModal?.addEventListener("click", (e) => {
+    if (e.target === contendersModal) {
+      closeContenders();
+    }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && contendersModal?.classList.contains("active")) {
+      closeContenders();
+    }
+  });
+}
+
+initContendersModal();
+
+/* ==========================================================================
+   DROP POOL HOST CUSTOMIZER CONTROLLER
+   ========================================================================== */
+function initDropPoolHostControls() {
+  // Add item form submission
+  addDropItemForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!isHostUser()) return;
+
+    const label = newItemLabel.value.trim();
+    if (!label) return;
+
+    const icon = newItemIcon.value.trim() || "🎁";
+    const sub = newItemSub.value.trim() || "Custom Prize";
+
+    const newItem = {
+      id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      label: label,
+      sub: sub,
+      icon: icon,
+      colorTheme: MODES.items.slices.length % 3,
+    };
+
+    MODES.items.slices.push(newItem);
+    localStorage.setItem("wheel-custom-drops", JSON.stringify(MODES.items.slices));
+
+    newItemLabel.value = "";
+    newItemSub.value = "";
+
+    renderWheel();
+    renderRoster();
+
+    if (socket && socket.connected && discordSdk && discordSdk.channelId) {
+      socket.emit("wheel:update_segments", {
+        channelId: discordSdk.channelId,
+        segments: MODES.items.slices,
+      });
+    }
+  });
+
+  // Quick emoji buttons
+  document.querySelectorAll(".quick-emoji-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const emoji = btn.getAttribute("data-emoji");
+      if (newItemIcon && emoji) {
+        newItemIcon.value = emoji;
+      }
+    });
+  });
+
+  // Reset to default drop items
+  btnResetDrops?.addEventListener("click", () => {
+    if (!isHostUser()) return;
+    MODES.items.slices = JSON.parse(JSON.stringify(DEFAULT_DROP_ITEMS));
+    localStorage.setItem("wheel-custom-drops", JSON.stringify(MODES.items.slices));
+    renderWheel();
+    renderRoster();
+
+    if (socket && socket.connected && discordSdk && discordSdk.channelId) {
+      socket.emit("wheel:update_segments", {
+        channelId: discordSdk.channelId,
+        segments: MODES.items.slices,
+      });
+    }
+  });
+
+  // Delegate click for delete buttons inside rosterChips
+  rosterChips?.addEventListener("click", (e) => {
+    const deleteBtn = e.target.closest(".chip-delete-btn");
+    if (!deleteBtn) return;
+    if (!isHostUser()) return;
+
+    const idToDelete = deleteBtn.getAttribute("data-delete-id");
+    if (!idToDelete) return;
+
+    if (MODES.items.slices.length <= 2) {
+      alert("At least 2 items are required on the wheel.");
+      return;
+    }
+
+    MODES.items.slices = MODES.items.slices.filter((s) => s.id !== idToDelete);
+    localStorage.setItem("wheel-custom-drops", JSON.stringify(MODES.items.slices));
+    renderWheel();
+    renderRoster();
+
+    if (socket && socket.connected && discordSdk && discordSdk.channelId) {
+      socket.emit("wheel:update_segments", {
+        channelId: discordSdk.channelId,
+        segments: MODES.items.slices,
+      });
+    }
+  });
+}
+
+initDropPoolHostControls();
