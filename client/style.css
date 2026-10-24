@@ -1373,6 +1373,59 @@ body {
 }
 
 /* ==========================================================================
+   Music Toggle Button & Sound Controls
+   ========================================================================== */
+.music-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.music-toggle-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--accent-purple-bright);
+  border-color: var(--border-amethyst);
+  transform: scale(1.08);
+}
+
+.music-toggle-btn.is-playing {
+  color: var(--accent-purple-bright);
+  border-color: rgba(168, 85, 247, 0.45);
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.25);
+}
+
+.music-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.music-on-icon {
+  display: none;
+}
+
+.music-off-icon {
+  display: block;
+}
+
+.music-toggle-btn.is-playing .music-on-icon {
+  display: block;
+}
+
+.music-toggle-btn.is-playing .music-off-icon {
+  display: none;
+}
+
+/* ==========================================================================
    Theme Toggle Button & Light Theme System
    ========================================================================== */
 .theme-toggle-btn {

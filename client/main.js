@@ -79,9 +79,27 @@ const userAvatarEl = document.getElementById("user-avatar");
 const channelNameText = document.getElementById("channel-name-text");
 
 /* ==========================================================================
-   WEB AUDIO HARMONICS (Subtle Mechanical Tick & Victory Chime)
+   WEB AUDIO HARMONICS & CALM AMBIENT SOUNDTRACK
    ========================================================================== */
 let audioCtx = null;
+let musicMasterGain = null;
+let musicFilter = null;
+let isMusicMuted = localStorage.getItem("wheel-music-muted") === "true";
+let isMusicPlaying = false;
+let ambientTimer = null;
+let currentChordIndex = 0;
+
+// Dreamy, peaceful ambient chord frequencies (Hz) in warm lower-mid register
+const AMBIENT_CHORDS = [
+  // Ebmaj9: Eb3, G3, Bb3, D4, F4
+  [155.56, 196.00, 233.08, 293.66, 349.23],
+  // Cm9: C3, G3, Bb3, Eb4, D4
+  [130.81, 196.00, 233.08, 311.13, 293.66],
+  // Abmaj7#11: Ab2, Eb3, G3, C4, D4
+  [103.83, 155.56, 196.00, 261.63, 293.66],
+  // Bb6/9: Bb2, F3, G3, C4, D4
+  [116.54, 174.61, 196.00, 261.63, 293.66],
+];
 
 function getAudioContext() {
   if (!audioCtx) {
@@ -94,6 +112,146 @@ function getAudioContext() {
     audioCtx.resume();
   }
   return audioCtx;
+}
+
+function initMusicEngine() {
+  const ctx = getAudioContext();
+  if (!ctx || musicMasterGain) return;
+
+  musicMasterGain = ctx.createGain();
+  const initialGain = isMusicMuted ? 0.0001 : 0.065;
+  musicMasterGain.gain.setValueAtTime(initialGain, ctx.currentTime);
+
+  musicFilter = ctx.createBiquadFilter();
+  musicFilter.type = "lowpass";
+  musicFilter.frequency.setValueAtTime(520, ctx.currentTime);
+  musicFilter.Q.setValueAtTime(0.85, ctx.currentTime);
+
+  musicFilter.connect(musicMasterGain);
+  musicMasterGain.connect(ctx.destination);
+}
+
+function playNextAmbientChord() {
+  if (!isMusicPlaying) return;
+  const ctx = getAudioContext();
+  if (!ctx || !musicFilter) return;
+
+  const chord = AMBIENT_CHORDS[currentChordIndex % AMBIENT_CHORDS.length];
+  currentChordIndex++;
+
+  const chordDuration = 7.0;
+  const now = ctx.currentTime;
+
+  chord.forEach((freq, idx) => {
+    try {
+      const osc = ctx.createOscillator();
+      const voiceGain = ctx.createGain();
+
+      osc.type = idx % 2 === 0 ? "sine" : "triangle";
+      // Gentle micro-detuning for lush warmth
+      const detune = (Math.random() - 0.5) * 6;
+      osc.frequency.setValueAtTime(freq, now);
+      osc.detune.setValueAtTime(detune, now);
+
+      // Smooth attack, sustain, and release crossfade
+      const peakGain = 0.2 / chord.length;
+      voiceGain.gain.setValueAtTime(0.0001, now);
+      voiceGain.gain.exponentialRampToValueAtTime(peakGain, now + 2.2);
+      voiceGain.gain.setValueAtTime(peakGain, now + chordDuration - 2.2);
+      voiceGain.gain.exponentialRampToValueAtTime(0.0001, now + chordDuration);
+
+      osc.connect(voiceGain);
+      voiceGain.connect(musicFilter);
+
+      osc.start(now);
+      osc.stop(now + chordDuration + 0.05);
+    } catch (e) {
+      // Ignore oscillator cleanup errors
+    }
+  });
+
+  // Soft sparkle shimmer note periodically
+  if (Math.random() < 0.45) {
+    try {
+      const sparkleOsc = ctx.createOscillator();
+      const sparkleGain = ctx.createGain();
+      const sparkleFreqs = [783.99, 880.0, 1046.5];
+      const sFreq = sparkleFreqs[Math.floor(Math.random() * sparkleFreqs.length)];
+
+      sparkleOsc.type = "sine";
+      sparkleOsc.frequency.setValueAtTime(sFreq, now + 1.5);
+      sparkleGain.gain.setValueAtTime(0.0001, now + 1.5);
+      sparkleGain.gain.exponentialRampToValueAtTime(0.012, now + 1.9);
+      sparkleGain.gain.exponentialRampToValueAtTime(0.0001, now + 4.2);
+
+      sparkleOsc.connect(sparkleGain);
+      sparkleGain.connect(ctx.destination);
+
+      sparkleOsc.start(now + 1.5);
+      sparkleOsc.stop(now + 4.3);
+    } catch (e) {}
+  }
+
+  // Schedule next chord with overlap for smooth continuous crossfade
+  const nextDelay = (chordDuration - 1.9) * 1000;
+  ambientTimer = setTimeout(playNextAmbientChord, nextDelay);
+}
+
+function startAmbientMusic() {
+  initMusicEngine();
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  if (!isMusicPlaying) {
+    isMusicPlaying = true;
+    playNextAmbientChord();
+  }
+
+  setMusicMuteState(isMusicMuted);
+}
+
+function setMusicMuteState(muted) {
+  isMusicMuted = muted;
+  localStorage.setItem("wheel-music-muted", muted ? "true" : "false");
+
+  const musicToggleBtn = document.getElementById("music-toggle-btn");
+  if (musicToggleBtn) {
+    if (!muted) {
+      musicToggleBtn.classList.add("is-playing");
+      musicToggleBtn.setAttribute("title", "Mute calm background music");
+    } else {
+      musicToggleBtn.classList.remove("is-playing");
+      musicToggleBtn.setAttribute("title", "Unmute calm background music");
+    }
+  }
+
+  if (musicMasterGain && audioCtx) {
+    const now = audioCtx.currentTime;
+    musicMasterGain.gain.cancelScheduledValues(now);
+    musicMasterGain.gain.setValueAtTime(Math.max(0.0001, musicMasterGain.gain.value), now);
+    if (muted) {
+      musicMasterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    } else {
+      musicMasterGain.gain.exponentialRampToValueAtTime(0.065, now + 0.6);
+    }
+  }
+}
+
+function toggleMusicMute() {
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  if (!isMusicPlaying) {
+    startAmbientMusic();
+  }
+
+  setMusicMuteState(!isMusicMuted);
 }
 
 function playTickSound() {
@@ -1024,3 +1182,28 @@ renderWheel();
 renderBezelStuds();
 initAmbientParticles();
 setupDiscordSdk();
+
+// Calm Music Mute Controller & Continuous Background Soundtrack
+const musicToggleBtn = document.getElementById("music-toggle-btn");
+if (musicToggleBtn) {
+  musicToggleBtn.addEventListener("click", () => {
+    toggleMusicMute();
+  });
+}
+
+// Start background soundtrack on first interaction according to browser autoplay requirements
+const handleFirstAudioInteraction = () => {
+  if (!isMusicMuted) {
+    startAmbientMusic();
+  } else {
+    setMusicMuteState(true);
+  }
+  window.removeEventListener("pointerdown", handleFirstAudioInteraction);
+  window.removeEventListener("keydown", handleFirstAudioInteraction);
+};
+
+window.addEventListener("pointerdown", handleFirstAudioInteraction, { once: true });
+window.addEventListener("keydown", handleFirstAudioInteraction, { once: true });
+
+// Setup initial UI indicator
+setMusicMuteState(isMusicMuted);
