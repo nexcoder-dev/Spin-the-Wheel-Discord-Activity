@@ -184,12 +184,19 @@ function renderWheel() {
   // Clear existing slices
   wheelSlicesGroup.innerHTML = "";
 
-  // Color schemes for slice alternating patterns
-  const colorThemes = [
-    { fill: "url(#slice-grad-1)", text: "#f8fafc", sub: "#a1a1aa" },
-    { fill: "url(#slice-grad-2)", text: "#f5d0fe", sub: "#c084fc" },
-    { fill: "url(#slice-grad-3)", text: "#e2e8f0", sub: "#94a3b8" },
-  ];
+  // Color schemes for slice alternating patterns (light/dark adaptive)
+  const isLight = document.body.classList.contains("light-theme");
+  const colorThemes = isLight
+    ? [
+        { fill: "url(#slice-grad-light-1)", text: "#0f172a", sub: "#64748b" },
+        { fill: "url(#slice-grad-light-2)", text: "#4c1d95", sub: "#7c3aed" },
+        { fill: "url(#slice-grad-light-3)", text: "#1e293b", sub: "#475569" },
+      ]
+    : [
+        { fill: "url(#slice-grad-1)", text: "#f8fafc", sub: "#a1a1aa" },
+        { fill: "url(#slice-grad-2)", text: "#f5d0fe", sub: "#c084fc" },
+        { fill: "url(#slice-grad-3)", text: "#e2e8f0", sub: "#94a3b8" },
+      ];
 
   items.forEach((item, index) => {
     const startAngle = index * sliceAngle;
@@ -331,6 +338,99 @@ function renderRoster() {
 }
 
 /* ==========================================================================
+   AMBIENT BACKGROUND PARTICLES (Soft Floating Amethyst & Gold Bokeh)
+   ========================================================================== */
+let ambientParticlesAnimId = null;
+
+function initAmbientParticles() {
+  const canvas = document.getElementById("ambient-particles");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  const colors = [
+    "rgba(168, 85, 247, 0.4)",
+    "rgba(192, 132, 252, 0.3)",
+    "rgba(139, 92, 246, 0.25)",
+    "rgba(250, 204, 21, 0.25)",
+    "rgba(255, 255, 255, 0.35)",
+  ];
+
+  const orbs = [];
+  const orbCount = Math.min(32, Math.floor(window.innerWidth / 40));
+
+  for (let i = 0; i < orbCount; i++) {
+    orbs.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      radius: Math.random() * 3 + 1.2,
+      vx: (Math.random() - 0.5) * 0.45,
+      vy: (Math.random() - 0.5) * 0.4 - 0.15,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      baseAlpha: Math.random() * 0.4 + 0.2,
+      phase: Math.random() * Math.PI * 2,
+      pulseSpeed: 0.015 + Math.random() * 0.02,
+    });
+  }
+
+  function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    orbs.forEach((orb) => {
+      orb.x += orb.vx;
+      orb.y += orb.vy;
+      orb.phase += orb.pulseSpeed;
+
+      if (orb.x < -10) orb.x = canvas.width + 10;
+      if (orb.x > canvas.width + 10) orb.x = -10;
+      if (orb.y < -10) orb.y = canvas.height + 10;
+      if (orb.y > canvas.height + 10) orb.y = -10;
+
+      const currentAlpha = orb.baseAlpha * (0.6 + 0.4 * Math.sin(orb.phase));
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, currentAlpha);
+      ctx.fillStyle = orb.color;
+      ctx.beginPath();
+      ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    ambientParticlesAnimId = requestAnimationFrame(loop);
+  }
+
+  if (ambientParticlesAnimId) cancelAnimationFrame(ambientParticlesAnimId);
+  loop();
+}
+
+/**
+ * Populates 24 micro-studs around the metallic bezel ring
+ */
+function renderBezelStuds() {
+  const bezelTicks = document.getElementById("bezel-ticks");
+  if (!bezelTicks) return;
+  bezelTicks.innerHTML = "";
+  const numStuds = 24;
+  for (let i = 0; i < numStuds; i++) {
+    const angle = ((i * 360) / numStuds) * (Math.PI / 180);
+    const x = 50 + 48.2 * Math.cos(angle);
+    const y = 50 + 48.2 * Math.sin(angle);
+    const stud = document.createElement("div");
+    stud.className = "bezel-stud";
+    stud.style.left = `${x.toFixed(2)}%`;
+    stud.style.top = `${y.toFixed(2)}%`;
+    bezelTicks.appendChild(stud);
+  }
+}
+
+/* ==========================================================================
    SPIN MECHANICS & ANIMATION
    ========================================================================== */
 
@@ -348,6 +448,15 @@ export function spinWheel(targetAngle = null, duration = 4800, customWinner = nu
 
   isSpinning = true;
   spinCount++;
+
+  const wheelWrapper = document.querySelector(".wheel-wrapper");
+  if (wheelWrapper) {
+    wheelWrapper.classList.add("is-spinning");
+  }
+
+  // Clear previous winning highlights
+  document.querySelectorAll(".winning-slice").forEach((el) => el.classList.remove("winning-slice"));
+  document.querySelectorAll(".roster-chip.winner-chip").forEach((el) => el.classList.remove("winner-chip"));
 
   // UI state: update button and status
   btnSpin.disabled = true;
@@ -394,7 +503,7 @@ export function spinWheel(targetAngle = null, duration = 4800, customWinner = nu
   wheelSvg.style.transition = `transform ${duration}ms cubic-bezier(0.12, 0.8, 0.25, 1)`;
   wheelSvg.style.transform = `rotate(${currentRotation}deg)`;
 
-  // Simulate tick flutter on pointer during spin with mechanical audio clicks
+  // Simulate tick flutter on pointer during spin with mechanical audio clicks & chasing bezel lights
   startPointerFlutter(duration);
 
   // Completion timer
@@ -403,6 +512,22 @@ export function spinWheel(targetAngle = null, duration = 4800, customWinner = nu
     btnSpin.disabled = false;
     btnSpinText.textContent = "SPIN THE WHEEL";
     spinStatusText.textContent = `Landed on ${winner.label}`;
+
+    if (wheelWrapper) {
+      wheelWrapper.classList.remove("is-spinning");
+    }
+
+    // Highlight winning slice in SVG
+    const winningSlice = wheelSlicesGroup.querySelector(`[data-index="${chosenIndex}"]`);
+    if (winningSlice) {
+      winningSlice.classList.add("winning-slice");
+    }
+
+    // Highlight winning chip in roster preview
+    const chips = rosterChips.querySelectorAll(".roster-chip");
+    if (chips[chosenIndex]) {
+      chips[chosenIndex].classList.add("winner-chip");
+    }
 
     // Announce Winner via Modal, Chime & Confetti
     playVictoryChime();
@@ -424,11 +549,13 @@ window.setWheelMode = (mode) => {
 };
 
 /**
- * Ticks the top pointer while wheel rotates rapidly
+ * Ticks the top pointer and pulses bezel studs sequentially while wheel rotates rapidly
  */
 function startPointerFlutter(duration) {
   let elapsed = 0;
   let interval = 75;
+  const studs = document.querySelectorAll(".bezel-stud");
+  let studStep = 0;
 
   function scheduleTick() {
     if (elapsed < duration * 0.72) {
@@ -436,9 +563,21 @@ function startPointerFlutter(duration) {
       playTickSound();
       setTimeout(() => wheelPointer.classList.remove("flutter"), interval * 0.6);
 
+      // Light up chasing studs around the bezel rim
+      if (studs.length > 0) {
+        studs.forEach((s) => s.classList.remove("active-glow"));
+        const idx1 = studStep % studs.length;
+        const idx2 = (studStep + Math.floor(studs.length / 2)) % studs.length;
+        studs[idx1]?.classList.add("active-glow");
+        studs[idx2]?.classList.add("active-glow");
+        studStep = (studStep + 1) % studs.length;
+      }
+
       elapsed += interval;
       interval = Math.min(interval * 1.06, 260); // Gradually decelerate tick frequency
       setTimeout(scheduleTick, interval);
+    } else {
+      studs.forEach((s) => s.classList.remove("active-glow"));
     }
   }
 
@@ -494,10 +633,34 @@ function closeWinnerModal() {
 }
 
 /* ==========================================================================
-   STANDALONE CANVAS CONFETTI ENGINE
+   STANDALONE CANVAS CONFETTI ENGINE (Multi-Shape, 3D Flip & Sparkles)
    ========================================================================== */
 let confettiAnimationId = null;
 let particles = [];
+
+function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+  let rot = (Math.PI / 2) * 3;
+  let x = cx;
+  let y = cy;
+  const step = Math.PI / spikes;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - outerRadius);
+  for (let i = 0; i < spikes; i++) {
+    x = cx + Math.cos(rot) * outerRadius;
+    y = cy + Math.sin(rot) * outerRadius;
+    ctx.lineTo(x, y);
+    rot += step;
+
+    x = cx + Math.cos(rot) * innerRadius;
+    y = cy + Math.sin(rot) * innerRadius;
+    ctx.lineTo(x, y);
+    rot += step;
+  }
+  ctx.lineTo(cx, cy - outerRadius);
+  ctx.closePath();
+  ctx.fill();
+}
 
 function launchConfetti() {
   const canvas = confettiCanvas;
@@ -506,18 +669,31 @@ function launchConfetti() {
   canvas.height = window.innerHeight;
 
   particles = [];
-  const colors = ["#a855f7", "#c084fc", "#e879f9", "#818cf8", "#facc15", "#ffffff"];
+  const colors = [
+    "#c084fc",
+    "#a855f7",
+    "#8b5cf6",
+    "#facc15",
+    "#fbbf24",
+    "#38bdf8",
+    "#f472b6",
+    "#ffffff",
+  ];
+  const shapes = ["rect", "star", "circle", "ribbon"];
 
-  for (let i = 0; i < 95; i++) {
+  for (let i = 0; i < 110; i++) {
     particles.push({
-      x: canvas.width / 2 + (Math.random() * 80 - 40),
-      y: canvas.height / 2 + (Math.random() * 40 - 20),
-      vx: (Math.random() - 0.5) * 15,
-      vy: (Math.random() - 1.25) * 13 - 4,
-      size: Math.random() * 7 + 4,
+      x: canvas.width / 2 + (Math.random() * 120 - 60),
+      y: canvas.height / 2 + (Math.random() * 60 - 30),
+      vx: (Math.random() - 0.5) * 18,
+      vy: (Math.random() - 1.35) * 14 - 5,
+      size: Math.random() * 8 + 4,
+      shape: shapes[Math.floor(Math.random() * shapes.length)],
       color: colors[Math.floor(Math.random() * colors.length)],
       rotation: Math.random() * 360,
-      vRot: (Math.random() - 0.5) * 12,
+      vRot: (Math.random() - 0.5) * 14,
+      flip: Math.random() * Math.PI,
+      vFlip: Math.random() * 0.1 + 0.05,
       opacity: 1,
     });
   }
@@ -529,12 +705,13 @@ function launchConfetti() {
     particles.forEach((p) => {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.32; // gravity
-      p.vx *= 0.98; // air drag
+      p.vy += 0.34; // gravity
+      p.vx *= 0.985; // drag
       p.rotation += p.vRot;
+      p.flip += p.vFlip;
 
-      if (p.y > canvas.height * 0.35) {
-        p.opacity -= 0.012;
+      if (p.y > canvas.height * 0.32) {
+        p.opacity -= 0.011;
       }
 
       if (p.opacity > 0) {
@@ -544,7 +721,24 @@ function launchConfetti() {
         ctx.translate(p.x, p.y);
         ctx.rotate((p.rotation * Math.PI) / 180);
         ctx.fillStyle = p.color;
-        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
+
+        const scaleY = Math.cos(p.flip);
+
+        if (p.shape === "circle") {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size * 0.45, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.shape === "star") {
+          drawStar(ctx, 0, 0, 5, p.size * 0.65, p.size * 0.3);
+        } else if (p.shape === "ribbon") {
+          ctx.scale(1, scaleY);
+          ctx.fillRect(-p.size / 2, -p.size, p.size, p.size * 2);
+        } else {
+          // rect
+          ctx.scale(1, scaleY);
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
+        }
+
         ctx.restore();
       }
     });
@@ -801,7 +995,32 @@ export function setParticipants(memberList) {
 window.setParticipants = setParticipants;
 
 /* ==========================================================================
+   THEME TOGGLE CONTROLLER
+   ========================================================================== */
+const themeToggleBtn = document.getElementById("theme-toggle-btn");
+
+function initTheme() {
+  const savedTheme = localStorage.getItem("wheel-theme") || "dark";
+  if (savedTheme === "light") {
+    document.body.classList.add("light-theme");
+  } else {
+    document.body.classList.remove("light-theme");
+  }
+}
+
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener("click", () => {
+    const isNowLight = document.body.classList.toggle("light-theme");
+    localStorage.setItem("wheel-theme", isNowLight ? "light" : "dark");
+    renderWheel();
+  });
+}
+
+/* ==========================================================================
    INITIALIZATION
    ========================================================================== */
+initTheme();
 renderWheel();
+renderBezelStuds();
+initAmbientParticles();
 setupDiscordSdk();
