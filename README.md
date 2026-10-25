@@ -426,6 +426,7 @@ Contributions to **Spin the Wheel - Discord Activity** are welcome! Please revie
   * GitHub: [@nexcoder-dev](https://github.com/nexcoder-dev)  
   * Licensing & Inquiries: [gsa339402@gmail.com](mailto:gsa339402@gmail.com)
 * **Vedant** — *Frontend Developer*  
+  * GitHub: [@Vedant08-code-ai](https://github.com/Vedant08-code-ai)  
   * Contact: [vedantmaslekar26@gmail.com](mailto:vedantmaslekar26@gmail.com)
 
 ---

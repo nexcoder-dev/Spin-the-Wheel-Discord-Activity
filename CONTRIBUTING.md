@@ -182,4 +182,4 @@ When proposing a feature:
 
 For commercial licensing, partnerships, or private inquiries:
 * **Sayan** — *Backend Developer* | GitHub: [@nexcoder-dev](https://github.com/nexcoder-dev) | Email: [gsa339402@gmail.com](mailto:gsa339402@gmail.com)
-* **Vedant** — *Frontend Developer* | Email: [vedantmaslekar26@gmail.com](mailto:vedantmaslekar26@gmail.com)
+* **Vedant** — *Frontend Developer* | GitHub: [@Vedant08-code-ai](https://github.com/Vedant08-code-ai) | Email: [vedantmaslekar26@gmail.com](mailto:vedantmaslekar26@gmail.com)
