@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Spin the Wheel — Discord Activity</title>
-    <!-- Google Fonts -->
+    
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,102 +14,107 @@
   </head>
   <body>
     <div id="app">
-      <!-- Background Ambient Glows & Floating Particles -->
+      
       <div class="ambient-glow ambient-glow-1" aria-hidden="true"></div>
       <div class="ambient-glow ambient-glow-2" aria-hidden="true"></div>
       <div class="ambient-grid" aria-hidden="true"></div>
       <canvas id="ambient-particles" class="ambient-particles" aria-hidden="true"></canvas>
 
-      <!-- Top Navigation & User Display -->
+      
       <header class="app-header">
-        <div class="user-display" id="user-display">
-          <div class="avatar-wrapper">
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80"
-              alt="User Avatar"
-              class="user-avatar"
-              id="user-avatar"
-            />
-            <span class="status-indicator" title="Online in Voice"></span>
-          </div>
-          <div class="user-meta">
-            <span class="user-greeting">Welcome back,</span>
-            <div class="user-name-wrapper">
-              <span class="user-name" id="user-name">Alex Rivera</span>
-              <span class="user-tag" id="user-tag">@alex.rivera</span>
+        <div class="header-main-row">
+          <div class="user-display" id="user-display">
+            <div class="avatar-wrapper">
+              <img
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80"
+                alt="User Avatar"
+                class="user-avatar"
+                id="user-avatar"
+              />
+              <span class="status-indicator" title="Online in Voice"></span>
             </div>
+            <div class="user-meta">
+              <span class="user-greeting">Welcome back,</span>
+              <div class="user-name-wrapper">
+                <span class="user-name" id="user-name">Alex Rivera</span>
+                <span class="user-tag" id="user-tag">@alex.rivera</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="header-actions-group">
+            <button class="music-toggle-btn" id="music-toggle-btn" aria-label="Toggle Calm Music" title="Mute/Unmute Calm Music">
+              <svg class="music-icon music-on-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+              <svg class="music-icon music-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            </button>
+            <button class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle Theme" title="Switch Light/Dark Theme">
+              <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+              <svg class="theme-icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            </button>
+            <button class="settings-toggle-btn" id="settings-toggle-btn" aria-label="Wheel Settings" title="Wheel Settings">
+              <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        <div class="header-badges">
-          <div class="channel-badge" id="channel-badge">
+        <div class="header-badges" id="header-badges-row">
+          <div class="channel-badge" id="channel-badge" title="Click to refresh or customize Voice Channel name">
             <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
               <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
               <line x1="12" x2="12" y1="19" y2="22" />
             </svg>
-            <span id="channel-name-text">Voice Channel: #hangout</span>
+            <span id="channel-name-text">Voice: #Voice Channel</span>
           </div>
           <button class="header-contenders-btn" id="contenders-toggle-btn" aria-label="Toggle Active Contenders" title="View Active Contenders & Drops">
             <svg class="contenders-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
             <span class="contenders-btn-text" id="contenders-btn-text">Contenders</span>
             <span class="contenders-count-badge" id="contenders-count-badge">8</span>
           </button>
-          <div class="activity-status-pill">
-            <span class="pulse-dot"></span>
-            <span>LIVE SESSION</span>
+          <div class="activity-status-pill" id="connection-pill" title="Socket.IO Live Room Status">
+            <span class="pulse-dot" id="connection-dot"></span>
+            <span id="connection-status-text">CONNECTING</span>
           </div>
-          <button class="music-toggle-btn" id="music-toggle-btn" aria-label="Toggle Calm Music" title="Mute/Unmute Calm Music">
-            <svg class="music-icon music-on-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-            </svg>
-            <svg class="music-icon music-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <line x1="23" y1="9" x2="17" y2="15" />
-              <line x1="17" y1="9" x2="23" y2="15" />
-            </svg>
-          </button>
-          <button class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle Theme" title="Switch Light/Dark Theme">
-            <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5" />
-              <line x1="12" y1="1" x2="12" y2="3" />
-              <line x1="12" y1="21" x2="12" y2="23" />
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-              <line x1="1" y1="12" x2="3" y2="12" />
-              <line x1="21" y1="12" x2="23" y2="12" />
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-            </svg>
-            <svg class="theme-icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          </button>
-          <button class="settings-toggle-btn" id="settings-toggle-btn" aria-label="Wheel Settings" title="Wheel Settings">
-            <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
         </div>
       </header>
 
-      <!-- Main Stage: Asymmetric Editorial Layout -->
+      
       <main class="main-layout">
-        <!-- Left Column: Editorial Content & Controls -->
+        
         <section class="editorial-column">
           <h1 class="hero-title">
             Spin the<br />
             <span class="gradient-text">Wheel.</span>
           </h1>
 
-          <!-- Mode Switcher Tabs -->
+          
           <div class="mode-tabs-container">
             <div class="control-label-row">
               <span class="control-label">SELECT MODE</span>
@@ -161,7 +166,7 @@
             </div>
           </div>
 
-          <!-- Master Action Controls -->
+          
           <div class="action-controls">
             <button class="btn-spin-wheel btn-liquid-metal" id="btn-spin">
               <span class="btn-glow-layer"></span>
@@ -196,7 +201,7 @@
             </div>
           </div>
 
-          <!-- Live Feed / Previous Winner Ticker -->
+          
           <div class="recent-winner-ticker">
             <div class="ticker-badge">
               <span class="ticker-sparkle">👑</span>
@@ -205,29 +210,42 @@
             <div class="ticker-content">
               <span class="ticker-name" id="ticker-name">@Jordan</span>
               <span class="ticker-prize" id="ticker-prize">won Discord Nitro</span>
-              <span class="ticker-time">2m ago</span>
+              <span class="ticker-time" id="ticker-time">Just now</span>
+            </div>
+          </div>
+
+          
+          <div class="live-reactions-bar" id="live-reactions-bar">
+            <span class="reactions-label">CHEER:</span>
+            <div class="reactions-list">
+              <button type="button" class="reaction-btn" data-emoji="🎉" title="Cheer with Confetti">🎉</button>
+              <button type="button" class="reaction-btn" data-emoji="🔥" title="Hype">🔥</button>
+              <button type="button" class="reaction-btn" data-emoji="👑" title="Crown">👑</button>
+              <button type="button" class="reaction-btn" data-emoji="🚀" title="Rocket">🚀</button>
+              <button type="button" class="reaction-btn" data-emoji="💎" title="Diamond">💎</button>
+              <button type="button" class="reaction-btn" data-emoji="👏" title="Applause">👏</button>
             </div>
           </div>
         </section>
 
-        <!-- Right Column: The Hero Wheel Stage -->
+        
         <section class="wheel-stage-column">
           <div class="wheel-wrapper">
-            <!-- Ambient Violet Halo behind wheel -->
+            
             <div class="wheel-halo" aria-hidden="true"></div>
 
-            <!-- Outer Metallic Bezel Ring -->
+            
             <div class="wheel-bezel">
-              <!-- Minute tick marks around bezel ring -->
+              
               <div class="bezel-ticks" id="bezel-ticks" aria-hidden="true"></div>
 
-              <!-- Top Center Pin / Pointer (Indicator at 12 o'clock) -->
+              
               <div class="wheel-pointer" id="wheel-pointer">
                 <div class="pointer-needle"></div>
                 <div class="pointer-jewel"></div>
               </div>
 
-              <!-- The Rotating Wheel Disc -->
+              
               <div class="wheel-disc-container" id="wheel-disc-container">
                 <svg
                   id="wheel-svg"
@@ -236,22 +254,22 @@
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <defs>
-                    <!-- Slice Gradient Dark 1 -->
+                    
                     <linearGradient id="slice-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stop-color="#221e2a" />
                       <stop offset="100%" stop-color="#16141a" />
                     </linearGradient>
-                    <!-- Slice Gradient Amethyst 2 -->
+                    
                     <linearGradient id="slice-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stop-color="#3b2552" />
                       <stop offset="100%" stop-color="#241635" />
                     </linearGradient>
-                    <!-- Slice Gradient Highlight 3 -->
+                    
                     <linearGradient id="slice-grad-3" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stop-color="#2b203a" />
                       <stop offset="100%" stop-color="#191522" />
                     </linearGradient>
-                    <!-- Light Mode Slice Gradients -->
+                    
                     <linearGradient id="slice-grad-light-1" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stop-color="#ffffff" />
                       <stop offset="100%" stop-color="#f1f5f9" />
@@ -265,7 +283,7 @@
                       <stop offset="100%" stop-color="#e2e8f0" />
                     </linearGradient>
 
-                    <!-- Amethyst Glow Gradients -->
+                    
                     <linearGradient id="slice-grad-amethyst-1" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stop-color="#3b0764" />
                       <stop offset="100%" stop-color="#1e053a" />
@@ -279,7 +297,7 @@
                       <stop offset="100%" stop-color="#2e1065" />
                     </linearGradient>
 
-                    <!-- Cyber Sunset Gradients -->
+                    
                     <linearGradient id="slice-grad-cyber-1" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stop-color="#be185d" />
                       <stop offset="100%" stop-color="#831843" />
@@ -293,7 +311,7 @@
                       <stop offset="100%" stop-color="#4c1d95" />
                     </linearGradient>
 
-                    <!-- Minimal Charcoal Gradients -->
+                    
                     <linearGradient id="slice-grad-minimal-1" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stop-color="#27272a" />
                       <stop offset="100%" stop-color="#18181b" />
@@ -307,23 +325,23 @@
                       <stop offset="100%" stop-color="#121216" />
                     </linearGradient>
 
-                    <!-- Center Hub Glow -->
+                    
                     <radialGradient id="hub-grad" cx="50%" cy="50%" r="50%">
                       <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.3" />
                       <stop offset="60%" stop-color="#18181b" />
                       <stop offset="100%" stop-color="#0f0f12" />
                     </radialGradient>
-                    <!-- Drop Shadow for Slices -->
+                    
                     <filter id="slice-inset-shadow" x="-10%" y="-10%" width="120%" height="120%">
                       <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#000" flood-opacity="0.4" />
                     </filter>
                   </defs>
 
-                  <!-- Slices rendered dynamically by JS -->
+                  
                   <g id="wheel-slices-group"></g>
                 </svg>
 
-                <!-- Center Glassmorphic Hub -->
+                
                 <div class="wheel-center-hub">
                   <div class="hub-pulse-ring" aria-hidden="true"></div>
                   <div class="hub-outer-ring"></div>
@@ -339,7 +357,7 @@
         </section>
       </main>
 
-      <!-- Winner Modal / Overlay -->
+      
       <div class="winner-modal-overlay" id="winner-modal" aria-hidden="true">
         <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
         <div class="winner-modal-card" role="dialog" aria-modal="true" aria-labelledby="winner-title">
@@ -363,7 +381,7 @@
             <div class="winner-avatar-ripple ripple-2" aria-hidden="true"></div>
             <div class="winner-avatar-ring"></div>
             <div class="winner-avatar-core" id="winner-avatar-box">
-              <img src="" alt="Winner Avatar" id="winner-avatar-img" class="winner-avatar-img" style="display: none;" />
+              <img src="" alt="" id="winner-avatar-img" class="winner-avatar-img" style="display: none;" />
               <span class="winner-avatar-fallback" id="winner-avatar-text">👑</span>
             </div>
           </div>
@@ -382,7 +400,7 @@
         </div>
       </div>
 
-      <!-- Active Contenders / Drop Pool Modal -->
+      
       <div class="contenders-modal-overlay" id="contenders-modal" aria-hidden="true">
         <div class="contenders-modal-card" role="dialog" aria-modal="true" aria-labelledby="roster-title">
           <div class="contenders-modal-ambient" aria-hidden="true"></div>
@@ -424,7 +442,36 @@
           </div>
 
           <div class="contenders-modal-body">
-            <!-- Host Drop Pool Customizer Section (Visible in Item Drops mode) -->
+            
+            <div class="giveaway-host-controls" id="giveaway-host-controls" style="display: block;">
+              <div class="host-controls-banner">
+                <div class="host-banner-left">
+                  <span class="host-crown-badge">👑 HOST PRIVILEGE</span>
+                  <span class="host-banner-text">Voice Channel Giveaway Settings & Prize</span>
+                </div>
+                <div class="giveaway-host-actions">
+                  <button type="button" class="btn-sync-vc" id="btn-sync-vc" title="Refresh Voice Channel Participants">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sync-icon">
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                    </svg>
+                    <span>Sync VC</span>
+                  </button>
+                  <button type="button" class="btn-reset-giveaway" id="btn-reset-giveaway" title="Reset giveaway winners">
+                    <span>Reset</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="giveaway-prize-form">
+                <div class="prize-input-field">
+                  <span class="prize-icon-display">🎁</span>
+                  <input type="text" id="giveaway-prize-input" class="giveaway-prize-input" placeholder="Giveaway Prize (e.g. Discord Nitro 1 Month)" maxlength="60" value="Giveaway Prize 🎁" />
+                </div>
+                <button type="button" class="btn-save-prize" id="btn-save-prize">Save Prize</button>
+              </div>
+            </div>
+
+            
             <div class="drop-pool-host-controls" id="drop-pool-host-controls" style="display: none;">
               <div class="host-controls-banner">
                 <div class="host-banner-left">
@@ -460,7 +507,7 @@
                   </button>
                 </div>
 
-                <!-- Quick Emoji Selection Row -->
+                
                 <div class="quick-emoji-row">
                   <span class="quick-emoji-label">Quick icons:</span>
                   <div class="quick-emojis">
@@ -480,7 +527,7 @@
             </div>
 
             <div class="roster-chips" id="roster-chips">
-              <!-- Dynamically populated via JS -->
+              
             </div>
           </div>
 
@@ -494,7 +541,7 @@
         </div>
       </div>
 
-      <!-- Wheel Settings Modal / Drawer -->
+      
       <div class="settings-modal-overlay" id="settings-modal" aria-hidden="true">
         <div class="settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
           <div class="settings-header">
@@ -522,7 +569,7 @@
           </div>
 
           <div class="settings-items-list">
-            <!-- 1. Host Only Spin -->
+            
             <div class="setting-item-card">
               <div class="setting-item-main">
                 <div class="setting-icon-box">
@@ -541,7 +588,7 @@
               </div>
             </div>
 
-            <!-- 2. Remove Winner -->
+            
             <div class="setting-item-card">
               <div class="setting-item-main">
                 <div class="setting-icon-box">
@@ -561,7 +608,7 @@
               </div>
             </div>
 
-            <!-- 3. Show Confetti -->
+            
             <div class="setting-item-card">
               <div class="setting-item-main">
                 <div class="setting-icon-box">
@@ -580,7 +627,7 @@
               </div>
             </div>
 
-            <!-- 4. Spin Duration -->
+            
             <div class="setting-item-card setting-select-card">
               <div class="setting-item-main">
                 <div class="setting-icon-box">
@@ -607,7 +654,7 @@
               </div>
             </div>
 
-            <!-- 5. Wheel Style -->
+            
             <div class="setting-item-card setting-select-card">
               <div class="setting-item-main">
                 <div class="setting-icon-box">
@@ -641,7 +688,13 @@
       </div>
     </div>
 
-    <!-- Main Module Script -->
-    <script type="module" src="/main.js"></script>
+    
+    <div class="floating-reactions-layer" id="floating-reactions-layer" aria-hidden="true"></div>
+
+    
+    <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+    
+    <script type="module" src="/main.js?v=20261025"></script>
   </body>
 </html>

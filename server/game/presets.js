@@ -76,3 +76,4 @@ export const DEFAULT_PALETTE = [
   "#06B6D4", "#3B82F6", "#6366F1", "#8B5CF6",
   "#EC4899", "#14B8A6", "#84CC16", "#EAB308"
 ];
+

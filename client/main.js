@@ -2,10 +2,6 @@ import { DiscordSDK } from "@discord/embedded-app-sdk";
 import { io } from "socket.io-client";
 import "./style.css";
 
-/* ==========================================================================
-   CONFIG & DATA SETS
-   ========================================================================== */
-
 const DEFAULT_DROP_ITEMS = [
   { id: "nitro", label: "Discord Nitro", sub: "1 Month Sub", icon: "💎", colorTheme: 1 },
   { id: "vip", label: "VIP Role", sub: "Permanent", icon: "👑", colorTheme: 0 },
@@ -44,15 +40,64 @@ const MODES = {
   },
 };
 
-// State Variables
-let currentMode = "members";
-let isSpinning = false;
-let currentRotation = 0; // Cumulative rotation in degrees
+export let discordSdk = null;
+export let auth = null;
+export let socket = null;
+export let currentChannelId = null;
+export let currentChannelName = null;
+export let currentUser = null;
+export let currentRoomHostUserId = null;
+export let currentMode = "members";
+export let isSpinning = false;
+export let currentRotation = 0;
 let spinCount = 0;
 
-/* ==========================================================================
-   DOM ELEMENTS
-   ========================================================================== */
+export function getDiscordAvatarUrl(userOrParticipant, size = 128) {
+  if (!userOrParticipant) return "https://cdn.discordapp.com/embed/avatars/0.png";
+  const avatar = userOrParticipant.avatar;
+  const id = userOrParticipant.id || userOrParticipant.userId;
+
+  if (typeof avatar === "string" && (avatar.startsWith("http://") || avatar.startsWith("https://") || avatar.startsWith("data:"))) {
+    return avatar;
+  }
+
+  if (id && typeof avatar === "string" && avatar.trim().length > 0) {
+    const isAnimated = avatar.startsWith("a_");
+    const ext = isAnimated ? "gif" : "png";
+    return `https://cdn.discordapp.com/avatars/${id}/${avatar}.${ext}?size=${size}`;
+  }
+
+  if (id && /^\d+$/.test(id)) {
+    try {
+      const idx = Number((BigInt(id) >> 22n) % 6n);
+      return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
+    } catch {
+      return `https://cdn.discordapp.com/embed/avatars/0.png`;
+    }
+  }
+
+  return "https://cdn.discordapp.com/embed/avatars/0.png";
+}
+
+export function getFriendlyChannelName(name, id) {
+  if (name && typeof name === "string" && name.trim().length > 0 && !/^\d+$/.test(name.trim()) && name.trim() !== "Voice Channel") {
+    return name.trim();
+  }
+  if (id && typeof id === "string" && !/^\d+$/.test(id) && id !== "voice-channel-demo" && id !== "voice-channel-lobby") {
+    return id.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  }
+  return "Voice Channel";
+}
+
+const userNameEl = document.getElementById("user-name");
+const userTagEl = document.getElementById("user-tag");
+const userAvatarEl = document.getElementById("user-avatar");
+const channelNameText = document.getElementById("channel-name-text");
+const channelBadge = document.getElementById("channel-badge");
+const connectionPill = document.getElementById("connection-pill");
+const connectionDot = document.getElementById("connection-dot");
+const connectionStatusText = document.getElementById("connection-status-text");
+
 const wheelSvg = document.getElementById("wheel-svg");
 const wheelSlicesGroup = document.getElementById("wheel-slices-group");
 const wheelPointer = document.getElementById("wheel-pointer");
@@ -65,7 +110,6 @@ const rosterChips = document.getElementById("roster-chips");
 const tabMembers = document.getElementById("tab-members");
 const tabItems = document.getElementById("tab-items");
 
-// Contenders Modal Elements
 const contendersModal = document.getElementById("contenders-modal");
 const contendersToggleBtn = document.getElementById("contenders-toggle-btn");
 const contendersCloseBtn = document.getElementById("contenders-close-btn");
@@ -75,7 +119,12 @@ const contendersBtnText = document.getElementById("contenders-btn-text");
 const rosterSubtitle = document.getElementById("roster-subtitle");
 const contendersSyncText = document.getElementById("contenders-sync-text");
 
-// Drop Pool Host Customizer Elements
+const giveawayHostControls = document.getElementById("giveaway-host-controls");
+const giveawayPrizeInput = document.getElementById("giveaway-prize-input");
+const btnSavePrize = document.getElementById("btn-save-prize");
+const btnSyncVc = document.getElementById("btn-sync-vc");
+const btnResetGiveaway = document.getElementById("btn-reset-giveaway");
+
 const dropPoolHostControls = document.getElementById("drop-pool-host-controls");
 const addDropItemForm = document.getElementById("add-drop-item-form");
 const newItemIcon = document.getElementById("new-item-icon");
@@ -83,7 +132,6 @@ const newItemLabel = document.getElementById("new-item-label");
 const newItemSub = document.getElementById("new-item-sub");
 const btnResetDrops = document.getElementById("btn-reset-drops");
 
-// Winner Modal Elements
 const winnerModal = document.getElementById("winner-modal");
 const modalCloseBtn = document.getElementById("modal-close-btn");
 const btnModalDismiss = document.getElementById("btn-modal-dismiss");
@@ -93,11 +141,13 @@ const winnerSubtitle = document.getElementById("winner-subtitle");
 const winnerAvatarText = document.getElementById("winner-avatar-text");
 const confettiCanvas = document.getElementById("confetti-canvas");
 
-// Ticker Elements
 const tickerName = document.getElementById("ticker-name");
 const tickerPrize = document.getElementById("ticker-prize");
+const tickerTime = document.getElementById("ticker-time");
 
-// Wheel Settings State & Storage
+const toastContainer = document.getElementById("toast-container");
+const floatingReactionsLayer = document.getElementById("floating-reactions-layer");
+
 const savedSettings = JSON.parse(localStorage.getItem("wheel-settings") || "{}");
 export const wheelSettings = {
   hostOnlySpin: savedSettings.hostOnlySpin ?? true,
@@ -106,17 +156,14 @@ export const wheelSettings = {
   spinDuration: savedSettings.spinDuration ?? 5000,
   wheelStyle: savedSettings.wheelStyle ?? "neon",
 };
-let currentRoomHostUserId = null;
 
 export function isHostUser() {
-  if (!currentRoomHostUserId) return true; // Standalone or local mode: current user is host
-  if (auth && auth.user && auth.user.id) {
-    return auth.user.id === currentRoomHostUserId;
-  }
-  return true;
+  if (!currentRoomHostUserId) return true;
+  const myId = currentUser?.id || auth?.user?.id;
+  if (!myId) return true;
+  return myId === currentRoomHostUserId;
 }
 
-// Settings Modal Elements
 const settingsModal = document.getElementById("settings-modal");
 const settingsToggleBtn = document.getElementById("settings-toggle-btn");
 const settingsCloseBtn = document.getElementById("settings-close-btn");
@@ -126,9 +173,6 @@ const settingShowConfetti = document.getElementById("setting-show-confetti");
 const settingSpinDuration = document.getElementById("setting-spin-duration");
 const settingWheelStyle = document.getElementById("setting-wheel-style");
 
-/* ==========================================================================
-   WEB AUDIO HARMONICS & CALM AMBIENT SOUNDTRACK
-   ========================================================================== */
 let audioCtx = null;
 let musicMasterGain = null;
 let musicFilter = null;
@@ -137,15 +181,14 @@ let isMusicPlaying = false;
 let ambientTimer = null;
 let currentChordIndex = 0;
 
-// Dreamy, peaceful ambient chord frequencies (Hz) in warm lower-mid register
 const AMBIENT_CHORDS = [
-  // Ebmaj9: Eb3, G3, Bb3, D4, F4
+
   [155.56, 196.00, 233.08, 293.66, 349.23],
-  // Cm9: C3, G3, Bb3, Eb4, D4
+
   [130.81, 196.00, 233.08, 311.13, 293.66],
-  // Abmaj7#11: Ab2, Eb3, G3, C4, D4
+
   [103.83, 155.56, 196.00, 261.63, 293.66],
-  // Bb6/9: Bb2, F3, G3, C4, D4
+
   [116.54, 174.61, 196.00, 261.63, 293.66],
 ];
 
@@ -196,12 +239,11 @@ function playNextAmbientChord() {
       const voiceGain = ctx.createGain();
 
       osc.type = idx % 2 === 0 ? "sine" : "triangle";
-      // Gentle micro-detuning for lush warmth
+
       const detune = (Math.random() - 0.5) * 6;
       osc.frequency.setValueAtTime(freq, now);
       osc.detune.setValueAtTime(detune, now);
 
-      // Smooth attack, sustain, and release crossfade
       const peakGain = 0.2 / chord.length;
       voiceGain.gain.setValueAtTime(0.0001, now);
       voiceGain.gain.exponentialRampToValueAtTime(peakGain, now + 2.2);
@@ -214,11 +256,10 @@ function playNextAmbientChord() {
       osc.start(now);
       osc.stop(now + chordDuration + 0.05);
     } catch (e) {
-      // Ignore oscillator cleanup errors
+
     }
   });
 
-  // Soft sparkle shimmer note periodically
   if (Math.random() < 0.45) {
     try {
       const sparkleOsc = ctx.createOscillator();
@@ -240,7 +281,6 @@ function playNextAmbientChord() {
     } catch (e) {}
   }
 
-  // Schedule next chord with overlap for smooth continuous crossfade
   const nextDelay = (chordDuration - 1.9) * 1000;
   ambientTimer = setTimeout(playNextAmbientChord, nextDelay);
 }
@@ -318,7 +358,7 @@ function playTickSound() {
     osc.start();
     osc.stop(ctx.currentTime + 0.04);
   } catch (e) {
-    // Ignore audio errors gracefully
+
   }
 }
 
@@ -326,7 +366,7 @@ function playVictoryChime() {
   const ctx = getAudioContext();
   if (!ctx) return;
   try {
-    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    const notes = [523.25, 659.25, 783.99, 1046.5];
     notes.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -341,17 +381,10 @@ function playVictoryChime() {
       osc.stop(startTime + 0.48);
     });
   } catch (e) {
-    // Ignore audio errors gracefully
+
   }
 }
 
-/* ==========================================================================
-   WHEEL SVG GENERATION
-   ========================================================================== */
-
-/**
- * Converts polar coordinates to Cartesian coordinates
- */
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
   return {
@@ -360,9 +393,6 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   };
 }
 
-/**
- * Creates an SVG arc path representing a wheel segment
- */
 function describeArc(x, y, radius, startAngle, endAngle) {
   const start = polarToCartesian(x, y, radius, endAngle);
   const end = polarToCartesian(x, y, radius, startAngle);
@@ -376,9 +406,6 @@ function describeArc(x, y, radius, startAngle, endAngle) {
   ].join(" ");
 }
 
-/**
- * Renders the wheel segments dynamically based on current mode
- */
 function renderWheel() {
   const items = MODES[currentMode].slices;
   const numSlices = items.length;
@@ -387,10 +414,12 @@ function renderWheel() {
   const cy = 250;
   const radius = 240;
 
-  // Clear existing slices
   wheelSlicesGroup.innerHTML = "";
+  const defs = wheelSvg.querySelector("defs");
+  if (defs) {
+    defs.querySelectorAll("[id^='clip-pfp-']").forEach((el) => el.remove());
+  }
 
-  // Color schemes for slice alternating patterns (light/dark & wheelStyle adaptive)
   const isLight = document.body.classList.contains("light-theme");
   let colorThemes;
   if (isLight) {
@@ -437,104 +466,138 @@ function renderWheel() {
     const startAngle = index * sliceAngle;
     const endAngle = (index + 1) * sliceAngle;
     const midAngle = startAngle + sliceAngle / 2;
+    const groupAngle = midAngle - 90;
+    const isFlipped = midAngle > 90 && midAngle < 270;
 
     const theme = colorThemes[item.colorTheme % colorThemes.length];
 
-    // Create Slice Group
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("class", "slice-group");
     g.setAttribute("data-index", index);
     g.setAttribute("data-id", item.id);
 
-    // Path element for slice sector
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", describeArc(cx, cy, radius, startAngle, endAngle));
     path.setAttribute("fill", theme.fill);
     path.setAttribute("class", "slice-path");
 
-    // Text container rotated radially from center towards edge
     const textGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    textGroup.setAttribute("transform", `rotate(${midAngle - 90}, ${cx}, ${cy})`);
+    textGroup.setAttribute("transform", `rotate(${groupAngle}, ${cx}, ${cy})`);
 
     if (item.sub) {
-      // Main Label (Item Mode)
+
+      const itemAnchorX = cx + radius - 26;
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      text.setAttribute("x", cx + radius - 26);
+      text.setAttribute("x", itemAnchorX);
       text.setAttribute("y", cy - 4);
       text.setAttribute("class", "slice-text");
       text.setAttribute("fill", theme.text);
       text.textContent = item.label;
 
-      // Subtitle / Role Tag
       const subText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      subText.setAttribute("x", cx + radius - 26);
+      subText.setAttribute("x", itemAnchorX);
       subText.setAttribute("y", cy + 12);
       subText.setAttribute("class", "slice-tag-sub");
       subText.setAttribute("fill", theme.sub);
       subText.textContent = `${item.icon ? item.icon + " " : ""}${item.sub}`;
 
+      if (isFlipped) {
+        text.setAttribute("text-anchor", "start");
+        text.setAttribute("transform", `rotate(180, ${itemAnchorX}, ${cy - 4})`);
+        subText.setAttribute("text-anchor", "start");
+        subText.setAttribute("transform", `rotate(180, ${itemAnchorX}, ${cy + 12})`);
+      } else {
+        text.setAttribute("text-anchor", "end");
+        subText.setAttribute("text-anchor", "end");
+      }
+
       textGroup.appendChild(text);
       textGroup.appendChild(subText);
     } else {
-      // Member Giveaway Mode: Profile Picture (PFP) + Member Name
-      if (item.avatar) {
-        const pfpX = cx + radius - 34;
-        const pfpY = cy;
-        const pfpR = 15;
 
-        // Ensure clipPath exists in defs
-        let clip = document.getElementById(`clip-pfp-${item.id}`);
+      const pfpX = cx + radius - 34;
+      const pfpY = cy;
+      const pfpR = 15;
+
+      const pfpBorder = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      pfpBorder.setAttribute("cx", pfpX);
+      pfpBorder.setAttribute("cy", pfpY);
+      pfpBorder.setAttribute("r", pfpR + 2);
+      pfpBorder.setAttribute("fill", "#18181f");
+      pfpBorder.setAttribute("stroke", "rgba(168, 85, 247, 0.85)");
+      pfpBorder.setAttribute("stroke-width", "2");
+      textGroup.appendChild(pfpBorder);
+
+      const pfpFallbackBg = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      pfpFallbackBg.setAttribute("cx", pfpX);
+      pfpFallbackBg.setAttribute("cy", pfpY);
+      pfpFallbackBg.setAttribute("r", pfpR);
+      pfpFallbackBg.setAttribute("fill", "#3b0764");
+      textGroup.appendChild(pfpFallbackBg);
+
+      const pfpFallbackText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      pfpFallbackText.setAttribute("x", pfpX);
+      pfpFallbackText.setAttribute("y", pfpY + 4);
+      pfpFallbackText.setAttribute("text-anchor", "middle");
+      pfpFallbackText.setAttribute("dominant-baseline", "middle");
+      pfpFallbackText.setAttribute("font-size", item.isPlaceholder ? "13px" : "11px");
+      pfpFallbackText.setAttribute("font-weight", "700");
+      pfpFallbackText.setAttribute("fill", "#f5d0fe");
+
+      pfpFallbackText.setAttribute("transform", `rotate(${-groupAngle}, ${pfpX}, ${pfpY})`);
+      const initial = item.isPlaceholder
+        ? "🎙️"
+        : (item.label ? item.label.replace(/^[@! ]+/, "").slice(0, 1).toUpperCase() : "👑");
+      pfpFallbackText.textContent = initial;
+      textGroup.appendChild(pfpFallbackText);
+
+      const resolvedAvatarUrl = !item.isPlaceholder ? getDiscordAvatarUrl(item) : null;
+      if (resolvedAvatarUrl && defs) {
+        const clipId = `clip-pfp-${index}`;
+        let clip = document.getElementById(clipId);
         if (!clip) {
           clip = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
-          clip.setAttribute("id", `clip-pfp-${item.id}`);
+          clip.setAttribute("id", clipId);
           const clipCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
           clipCircle.setAttribute("cx", pfpX);
           clipCircle.setAttribute("cy", pfpY);
           clipCircle.setAttribute("r", pfpR);
           clip.appendChild(clipCircle);
-          wheelSvg.querySelector("defs").appendChild(clip);
+          defs.appendChild(clip);
         }
 
-        // Outer border / glow ring for avatar
-        const pfpBorder = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        pfpBorder.setAttribute("cx", pfpX);
-        pfpBorder.setAttribute("cy", pfpY);
-        pfpBorder.setAttribute("r", pfpR + 2);
-        pfpBorder.setAttribute("fill", "#18181f");
-        pfpBorder.setAttribute("stroke", "rgba(168, 85, 247, 0.75)");
-        pfpBorder.setAttribute("stroke-width", "2");
-
-        // Avatar Image
         const pfpImg = document.createElementNS("http://www.w3.org/2000/svg", "image");
-        pfpImg.setAttribute("href", item.avatar);
+        pfpImg.setAttribute("href", resolvedAvatarUrl);
         pfpImg.setAttribute("x", pfpX - pfpR);
         pfpImg.setAttribute("y", pfpY - pfpR);
         pfpImg.setAttribute("width", pfpR * 2);
         pfpImg.setAttribute("height", pfpR * 2);
-        pfpImg.setAttribute("clip-path", `url(#clip-pfp-${item.id})`);
+        pfpImg.setAttribute("clip-path", `url(#${clipId})`);
         pfpImg.setAttribute("preserveAspectRatio", "xMidYMid slice");
 
-        // Member Name Text
-        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        text.setAttribute("x", pfpX - pfpR - 10);
-        text.setAttribute("y", cy + 5);
-        text.setAttribute("class", "slice-text slice-text-solo");
-        text.setAttribute("fill", theme.text);
-        text.textContent = item.label;
-
-        textGroup.appendChild(pfpBorder);
+        pfpImg.setAttribute("transform", `rotate(${-groupAngle}, ${pfpX}, ${pfpY})`);
         textGroup.appendChild(pfpImg);
-        textGroup.appendChild(text);
-      } else {
-        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        text.setAttribute("x", cx + radius - 24);
-        text.setAttribute("y", cy + 5);
-        text.setAttribute("class", "slice-text slice-text-solo");
-        text.setAttribute("fill", theme.text);
-        text.textContent = item.label;
-
-        textGroup.appendChild(text);
       }
+
+      const anchorX = pfpX - pfpR - 10;
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", anchorX);
+      text.setAttribute("y", cy + 5);
+      text.setAttribute("class", "slice-text slice-text-solo");
+      text.setAttribute("fill", theme.text);
+
+      const rawLabel = item.label || "Contender";
+      const displayLabel = rawLabel.length > 20 ? rawLabel.slice(0, 18) + "…" : rawLabel;
+      text.textContent = displayLabel;
+
+      if (isFlipped) {
+        text.setAttribute("text-anchor", "start");
+        text.setAttribute("transform", `rotate(180, ${anchorX}, ${cy + 5})`);
+      } else {
+        text.setAttribute("text-anchor", "end");
+      }
+
+      textGroup.appendChild(text);
     }
 
     g.appendChild(path);
@@ -542,13 +605,9 @@ function renderWheel() {
     wheelSlicesGroup.appendChild(g);
   });
 
-  // Update Roster chips preview
   renderRoster();
 }
 
-/**
- * Updates the preview chips for active contenders or item drops
- */
 function renderRoster() {
   const currentData = MODES[currentMode];
   rosterTitle.textContent = `${currentData.rosterTitle} (${currentData.slices.length})`;
@@ -594,19 +653,33 @@ function renderRoster() {
     }
   }
 
+  if (giveawayHostControls) {
+    if (currentMode === "members" && isHostUser()) {
+      giveawayHostControls.style.display = "block";
+    } else {
+      giveawayHostControls.style.display = "none";
+    }
+  }
+
   const canDelete = currentMode === "items" && isHostUser();
 
   currentData.slices.forEach((slice) => {
     const chip = document.createElement("div");
     chip.className = "roster-chip";
     chip.setAttribute("data-chip-id", slice.id);
-    if (slice.avatar) {
+    if (slice.avatar && !slice.isPlaceholder) {
+      const avatarSrc = getDiscordAvatarUrl(slice);
       chip.innerHTML = `
         <span class="roster-chip-avatar-wrap">
-          <img class="roster-chip-pfp" src="${slice.avatar}" alt="${slice.label}" />
+          <img class="roster-chip-pfp" src="${avatarSrc}" alt="" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" />
           <span class="roster-chip-status-ring"></span>
         </span>
         <span class="roster-chip-label">${slice.label}</span>
+      `;
+    } else if (slice.isPlaceholder) {
+      chip.innerHTML = `
+        <span class="roster-chip-emoji">🎙️</span>
+        <span class="roster-chip-label" style="opacity: 0.85;">${slice.label}</span>
       `;
     } else if (slice.icon) {
       chip.innerHTML = `
@@ -626,9 +699,6 @@ function renderRoster() {
   });
 }
 
-/* ==========================================================================
-   AMBIENT BACKGROUND PARTICLES (Soft Floating Amethyst & Gold Bokeh)
-   ========================================================================== */
 let ambientParticlesAnimId = null;
 
 function initAmbientParticles() {
@@ -652,7 +722,8 @@ function initAmbientParticles() {
   ];
 
   const orbs = [];
-  const orbCount = Math.min(32, Math.floor(window.innerWidth / 40));
+  const isMobile = window.innerWidth <= 640;
+  const orbCount = isMobile ? 12 : Math.min(32, Math.floor(window.innerWidth / 40));
 
   for (let i = 0; i < orbCount; i++) {
     orbs.push({
@@ -695,13 +766,23 @@ function initAmbientParticles() {
     ambientParticlesAnimId = requestAnimationFrame(loop);
   }
 
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (ambientParticlesAnimId) {
+        cancelAnimationFrame(ambientParticlesAnimId);
+        ambientParticlesAnimId = null;
+      }
+    } else {
+      if (!ambientParticlesAnimId) {
+        loop();
+      }
+    }
+  });
+
   if (ambientParticlesAnimId) cancelAnimationFrame(ambientParticlesAnimId);
   loop();
 }
 
-/**
- * Populates 24 micro-studs around the metallic bezel ring
- */
 function renderBezelStuds() {
   const bezelTicks = document.getElementById("bezel-ticks");
   if (!bezelTicks) return;
@@ -719,23 +800,14 @@ function renderBezelStuds() {
   }
 }
 
-/* ==========================================================================
-   SPIN MECHANICS & ANIMATION
-   ========================================================================== */
+export function spinWheelFromServer(spinData) {
+  if (!spinData || isSpinning) return;
 
-/**
- * Public function to spin the wheel.
- * Designed to be called by backend developers or local UI trigger.
- * 
- * @param {number|null} targetAngle - Target angle in degrees [0, 360).
- *                                   If null, a random slice is selected.
- * @param {number} duration - Duration in milliseconds (default: 5000ms).
- * @param {object|null} customWinner - Optional winner object override.
- */
-export function spinWheel(targetAngle = null, duration = null, customWinner = null) {
-  if (isSpinning) return;
-
-  const actualDuration = duration !== null ? duration : wheelSettings.spinDuration;
+  const actualDuration = spinData.durationMs || wheelSettings.spinDuration;
+  const targetRotation = spinData.targetAngle;
+  const winner = spinData.winningSegment || { label: "Winner", id: "winner" };
+  const chosenIndex = typeof spinData.winningIndex === "number" ? spinData.winningIndex : 0;
+  const spinnerName = spinData.spinnerName || "Someone";
 
   isSpinning = true;
   spinCount++;
@@ -745,14 +817,12 @@ export function spinWheel(targetAngle = null, duration = null, customWinner = nu
     wheelWrapper.classList.add("is-spinning");
   }
 
-  // Clear previous winning highlights
   document.querySelectorAll(".winning-slice").forEach((el) => el.classList.remove("winning-slice"));
   document.querySelectorAll(".roster-chip.winner-chip").forEach((el) => el.classList.remove("winner-chip"));
 
-  // UI state: update button and status
   btnSpin.disabled = true;
   btnSpinText.textContent = "SPINNING...";
-  spinStatusText.textContent = "Rolling physics deceleration...";
+  spinStatusText.textContent = `${spinnerName} spun! Rolling wheel...`;
 
   const statusPill = document.getElementById("status-pill");
   if (statusPill) {
@@ -760,50 +830,13 @@ export function spinWheel(targetAngle = null, duration = null, customWinner = nu
     statusPill.classList.add("is-spinning");
   }
 
-  const items = MODES[currentMode].slices;
-  const numSlices = items.length;
-  const sliceAngle = 360 / numSlices;
+  currentRotation = targetRotation;
 
-  let chosenIndex;
-  let finalSliceAngle;
-
-  if (targetAngle !== null && !isNaN(targetAngle)) {
-    // Normalizing target angle to [0, 360)
-    const normalized = ((targetAngle % 360) + 360) % 360;
-    chosenIndex = Math.floor(normalized / sliceAngle);
-    finalSliceAngle = normalized;
-  } else {
-    // Pick a random slice and land within its middle 60%
-    chosenIndex = Math.floor(Math.random() * numSlices);
-    const sliceStart = chosenIndex * sliceAngle;
-    const padding = sliceAngle * 0.2;
-    const randomOffset = padding + Math.random() * (sliceAngle - padding * 2);
-    finalSliceAngle = sliceStart + randomOffset;
-  }
-
-  // Ensure winning item reference
-  const winner = customWinner || items[chosenIndex];
-
-  // Calculate cumulative rotation forward
-  const fullRotations = (5 + Math.floor(Math.random() * 3)) * 360;
-  const currentAngleMod = currentRotation % 360;
-  let targetAngleMod = 360 - finalSliceAngle;
-  let angleDelta = targetAngleMod - currentAngleMod;
-  if (angleDelta <= 0) {
-    angleDelta += 360;
-  }
-
-  const nextRotation = currentRotation + fullRotations + angleDelta;
-  currentRotation = nextRotation;
-
-  // Apply CSS transition to the SVG
   wheelSvg.style.transition = `transform ${actualDuration}ms cubic-bezier(0.12, 0.8, 0.25, 1)`;
-  wheelSvg.style.transform = `rotate(${currentRotation}deg)`;
+  wheelSvg.style.transform = `rotate(${currentRotation}deg) translateZ(0)`;
 
-  // Simulate tick flutter on pointer during spin with mechanical audio clicks & chasing bezel lights
   startPointerFlutter(actualDuration);
 
-  // Completion timer
   setTimeout(() => {
     isSpinning = false;
     btnSpin.disabled = false;
@@ -819,23 +852,126 @@ export function spinWheel(targetAngle = null, duration = null, customWinner = nu
       wheelWrapper.classList.remove("is-spinning");
     }
 
-    // Highlight winning slice in SVG
     const winningSlice = wheelSlicesGroup.querySelector(`[data-index="${chosenIndex}"]`);
     if (winningSlice) {
       winningSlice.classList.add("winning-slice");
     }
 
-    // Highlight winning chip in roster preview
     const chips = rosterChips.querySelectorAll(".roster-chip");
     if (chips[chosenIndex]) {
       chips[chosenIndex].classList.add("winner-chip");
     }
 
-    // Announce Winner via Modal, Chime & Confetti
+    playVictoryChime();
+    showWinnerModal(winner);
+  }, actualDuration + 50);
+}
+
+export function spinWheel(targetAngle = null, duration = null, customWinner = null) {
+  if (isSpinning) return;
+
+  if (socket && socket.connected && currentChannelId) {
+    if (wheelSettings.hostOnlySpin && !isHostUser()) {
+      spinStatusText.textContent = "Only the host can spin the wheel";
+      showToast("Only the host can spin the wheel", "warning");
+      return;
+    }
+    btnSpin.disabled = true;
+    btnSpinText.textContent = "SPINNING...";
+    socket.emit("wheel:spin", { channelId: currentChannelId }, (res) => {
+      if (res && !res.success) {
+        btnSpin.disabled = false;
+        btnSpinText.textContent = "SPIN THE WHEEL";
+        spinStatusText.textContent = res.error || "Cannot spin";
+        showToast(res.error || "Cannot spin right now", "warning");
+      }
+    });
+    return;
+  }
+
+  const actualDuration = duration !== null ? duration : wheelSettings.spinDuration;
+  isSpinning = true;
+  spinCount++;
+
+  const wheelWrapper = document.querySelector(".wheel-wrapper");
+  if (wheelWrapper) {
+    wheelWrapper.classList.add("is-spinning");
+  }
+
+  document.querySelectorAll(".winning-slice").forEach((el) => el.classList.remove("winning-slice"));
+  document.querySelectorAll(".roster-chip.winner-chip").forEach((el) => el.classList.remove("winner-chip"));
+
+  btnSpin.disabled = true;
+  btnSpinText.textContent = "SPINNING...";
+  spinStatusText.textContent = "Rolling physics deceleration...";
+
+  const statusPill = document.getElementById("status-pill");
+  if (statusPill) {
+    statusPill.classList.remove("has-winner");
+    statusPill.classList.add("is-spinning");
+  }
+
+  const items = MODES[currentMode].slices;
+  const numSlices = items.length;
+  const sliceAngle = 360 / numSlices;
+
+  let chosenIndex;
+  let jitter = 0;
+
+  if (targetAngle !== null && !isNaN(targetAngle)) {
+    const normalized = ((targetAngle % 360) + 360) % 360;
+    chosenIndex = Math.floor(normalized / sliceAngle);
+  } else {
+    chosenIndex = Math.floor(Math.random() * numSlices);
+    const maxJitter = sliceAngle * 0.35;
+    jitter = (Math.random() * 2 - 1) * maxJitter;
+  }
+
+  const winner = customWinner || items[chosenIndex];
+
+  const sliceCenterAngle = chosenIndex * sliceAngle + sliceAngle / 2;
+  const desiredNormalizedAngle = (360 - ((sliceCenterAngle + jitter) % 360)) % 360;
+  const currentNormalized = ((currentRotation % 360) + 360) % 360;
+  let forwardDelta = desiredNormalizedAngle - currentNormalized;
+  if (forwardDelta < 0) {
+    forwardDelta += 360;
+  }
+  const fullRotations = (5 + Math.floor(Math.random() * 3)) * 360;
+  currentRotation = currentRotation + fullRotations + forwardDelta;
+
+  wheelSvg.style.transition = `transform ${actualDuration}ms cubic-bezier(0.12, 0.8, 0.25, 1)`;
+  wheelSvg.style.transform = `rotate(${currentRotation}deg) translateZ(0)`;
+
+  startPointerFlutter(actualDuration);
+
+  setTimeout(() => {
+    isSpinning = false;
+    btnSpin.disabled = false;
+    btnSpinText.textContent = "SPIN THE WHEEL";
+    spinStatusText.textContent = `Landed on ${winner.label}`;
+
+    if (statusPill) {
+      statusPill.classList.remove("is-spinning");
+      statusPill.classList.add("has-winner");
+    }
+
+    if (wheelWrapper) {
+      wheelWrapper.classList.remove("is-spinning");
+    }
+
+    const winningSlice = wheelSlicesGroup.querySelector(`[data-index="${chosenIndex}"]`);
+    if (winningSlice) {
+      winningSlice.classList.add("winning-slice");
+    }
+
+    const chips = rosterChips.querySelectorAll(".roster-chip");
+    if (chips[chosenIndex]) {
+      chips[chosenIndex].classList.add("winner-chip");
+    }
+
     playVictoryChime();
     showWinnerModal(winner);
 
-    // If Remove Winner is enabled:
     if (wheelSettings.removeWinner && items.length > 2) {
       setTimeout(() => {
         const itemIdx = items.findIndex((s) => s.id === winner.id);
@@ -849,22 +985,35 @@ export function spinWheel(targetAngle = null, duration = null, customWinner = nu
   }, actualDuration + 50);
 }
 
-// Expose spinWheel and mode controller globally on window for easy backend hookup
-window.spinWheel = spinWheel;
-window.setWheelMode = (mode) => {
-  if (MODES[mode]) {
-    currentMode = mode;
-    if (mode === "members") {
-      tabMembers.click();
-    } else {
-      tabItems.click();
-    }
-  }
-};
+export function setWheelMode(mode, broadcast = true) {
+  if (!MODES[mode]) return;
+  if (isSpinning) return;
+  currentMode = mode;
 
-/**
- * Ticks the top pointer and pulses bezel studs sequentially while wheel rotates rapidly
- */
+  if (mode === "members") {
+    tabMembers.classList.add("active");
+    tabMembers.setAttribute("aria-selected", "true");
+    tabItems.classList.remove("active");
+    tabItems.setAttribute("aria-selected", "false");
+  } else {
+    tabItems.classList.add("active");
+    tabItems.setAttribute("aria-selected", "true");
+    tabMembers.classList.remove("active");
+    tabMembers.setAttribute("aria-selected", "false");
+  }
+
+  renderWheel();
+
+  if (broadcast && socket && socket.connected && currentChannelId && isHostUser()) {
+    const presetId = mode === "members" ? "giveaway" : "items";
+    socket.emit("wheel:load_preset", { channelId: currentChannelId, presetId });
+  }
+}
+
+window.spinWheel = spinWheel;
+window.spinWheelFromServer = spinWheelFromServer;
+window.setWheelMode = setWheelMode;
+
 function startPointerFlutter(duration) {
   let elapsed = 0;
   let interval = 75;
@@ -877,7 +1026,6 @@ function startPointerFlutter(duration) {
       playTickSound();
       setTimeout(() => wheelPointer.classList.remove("flutter"), interval * 0.6);
 
-      // Light up chasing studs around the bezel rim
       if (studs.length > 0) {
         studs.forEach((s) => s.classList.remove("active-glow"));
         const idx1 = studStep % studs.length;
@@ -888,7 +1036,7 @@ function startPointerFlutter(duration) {
       }
 
       elapsed += interval;
-      interval = Math.min(interval * 1.06, 260); // Gradually decelerate tick frequency
+      interval = Math.min(interval * 1.06, 260);
       setTimeout(scheduleTick, interval);
     } else {
       studs.forEach((s) => s.classList.remove("active-glow"));
@@ -898,59 +1046,54 @@ function startPointerFlutter(duration) {
   scheduleTick();
 }
 
-/* ==========================================================================
-   WINNER MODAL & CELEBRATION EFFECTS
-   ========================================================================== */
-
-/**
- * Shows the elegant winner modal with winner details
- */
 function showWinnerModal(winner) {
   if (winnerTitle) {
     winnerTitle.textContent = "THE WINNER IS";
   }
-  winnerNameDisplay.textContent = winner.label;
+  const cleanWinnerName = winner.displayName || winner.global_name || winner.label || "Winner";
+  winnerNameDisplay.textContent = cleanWinnerName;
   winnerSubtitle.innerHTML = currentMode === "members"
-    ? `Congratulations to <span class="highlight-text">${winner.label}</span>!`
-    : `Landed on <span class="highlight-text">${winner.label}</span>!`;
+    ? `Congratulations to <span class="highlight-text">${cleanWinnerName}</span>!`
+    : `Landed on <span class="highlight-text">${cleanWinnerName}</span>!`;
 
   const winnerAvatarImg = document.getElementById("winner-avatar-img");
-  if (winner.avatar && winnerAvatarImg) {
-    winnerAvatarImg.src = winner.avatar;
+  const avatarUrl = !winner.isPlaceholder ? getDiscordAvatarUrl(winner) : null;
+  const initial = winner.isPlaceholder
+    ? "🎙️"
+    : (cleanWinnerName ? cleanWinnerName.replace(/^[@! ]+/, "").slice(0, 1).toUpperCase() : "👑");
+
+  if (avatarUrl && winnerAvatarImg) {
+    winnerAvatarImg.src = avatarUrl;
     winnerAvatarImg.style.display = "block";
     winnerAvatarText.style.display = "none";
+    winnerAvatarImg.onerror = () => {
+      winnerAvatarImg.style.display = "none";
+      winnerAvatarText.style.display = "flex";
+      winnerAvatarText.textContent = initial;
+    };
   } else {
     if (winnerAvatarImg) winnerAvatarImg.style.display = "none";
-    winnerAvatarText.style.display = "block";
-    winnerAvatarText.textContent = winner.icon || "👑";
+    winnerAvatarText.style.display = "flex";
+    winnerAvatarText.textContent = winner.icon || initial;
   }
 
-  // Update recent winner ticker
-  tickerName.textContent = winner.label;
-  tickerPrize.textContent = currentMode === "members" ? "won the Giveaway" : `won ${winner.sub || winner.label}`;
+  tickerName.textContent = cleanWinnerName;
+  tickerPrize.textContent = currentMode === "members" ? "won the Giveaway" : `won ${winner.sub || cleanWinnerName}`;
 
-  // Activate Modal overlay
   winnerModal.classList.add("active");
   winnerModal.setAttribute("aria-hidden", "false");
 
-  // Launch celebratory confetti burst if showConfetti is enabled
   if (wheelSettings.showConfetti) {
     launchConfetti();
   }
 }
 
-/**
- * Dismisses the winner modal
- */
 function closeWinnerModal() {
   winnerModal.classList.remove("active");
   winnerModal.setAttribute("aria-hidden", "true");
   stopConfetti();
 }
 
-/* ==========================================================================
-   STANDALONE CANVAS CONFETTI ENGINE (Multi-Shape, 3D Flip & Sparkles)
-   ========================================================================== */
 let confettiAnimationId = null;
 let particles = [];
 
@@ -997,7 +1140,8 @@ function launchConfetti() {
   ];
   const shapes = ["rect", "star", "circle", "ribbon"];
 
-  for (let i = 0; i < 110; i++) {
+  const particleCount = window.innerWidth < 640 ? 55 : 110;
+  for (let i = 0; i < particleCount; i++) {
     particles.push({
       x: canvas.width / 2 + (Math.random() * 120 - 60),
       y: canvas.height / 2 + (Math.random() * 60 - 30),
@@ -1021,8 +1165,8 @@ function launchConfetti() {
     particles.forEach((p) => {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.34; // gravity
-      p.vx *= 0.985; // drag
+      p.vy += 0.34;
+      p.vx *= 0.985;
       p.rotation += p.vRot;
       p.flip += p.vFlip;
 
@@ -1050,7 +1194,7 @@ function launchConfetti() {
           ctx.scale(1, scaleY);
           ctx.fillRect(-p.size / 2, -p.size, p.size, p.size * 2);
         } else {
-          // rect
+
           ctx.scale(1, scaleY);
           ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
         }
@@ -1079,30 +1223,105 @@ function stopConfetti() {
   ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
 }
 
-/* ==========================================================================
-   EVENT LISTENERS & MODE SWITCHING
-   ========================================================================== */
+export function updateChannelDisplay() {
+  const friendlyName = getFriendlyChannelName(currentChannelName, currentChannelId);
+  const cleanName = friendlyName.replace(/^#+/, "");
+  if (channelNameText) {
+    channelNameText.textContent = `Voice: #${cleanName}`;
+  }
+  if (connectionPill && connectionStatusText) {
+    if (connectionPill.classList.contains("is-connected")) {
+      connectionStatusText.textContent = "LIVE ROOM";
+      connectionPill.setAttribute("title", `Connected to #${cleanName}`);
+    }
+  }
+}
 
-// Global socket instance for multiplayer synchronisation with server.js
-let socket = null;
+function updateConnectionStatus(status) {
+  if (!connectionPill || !connectionStatusText) return;
+  connectionPill.classList.remove("is-connected", "is-offline");
 
+  const friendlyName = getFriendlyChannelName(currentChannelName, currentChannelId);
 
-// Spin Button Trigger
+  if (status === "connected") {
+    connectionPill.classList.add("is-connected");
+    connectionStatusText.textContent = "LIVE ROOM";
+    connectionPill.setAttribute("title", `Connected to #${friendlyName}`);
+  } else if (status === "connecting") {
+    connectionStatusText.textContent = "CONNECTING...";
+    connectionPill.setAttribute("title", "Connecting to live room...");
+  } else {
+    connectionPill.classList.add("is-offline");
+    connectionStatusText.textContent = "OFFLINE MODE";
+    connectionPill.setAttribute("title", "Disconnected from server");
+  }
+}
+
+function showToast(message, type = "normal") {
+  if (!toastContainer) return;
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(10px)";
+    toast.style.transition = "all 0.3s ease";
+    setTimeout(() => toast.remove(), 320);
+  }, 3500);
+}
+
+function spawnReaction(emoji) {
+  if (!floatingReactionsLayer) return;
+  const el = document.createElement("div");
+  el.className = "floating-emoji";
+  el.textContent = emoji;
+
+  const x = Math.max(20, Math.min(window.innerWidth - 60, Math.random() * (window.innerWidth - 80) + 40));
+  const y = window.innerHeight - 80;
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+
+  floatingReactionsLayer.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+function updateRecentWinnerTicker(item) {
+  if (!item) return;
+  const name = item.winner?.displayName || item.winner?.global_name || item.winner?.username || item.winningSegment?.label || item.label || "Winner";
+  const prize = item.prize || (item.winningSegment ? (item.winningSegment.sub || item.winningSegment.label) : "Giveaway Prize");
+  if (tickerName) tickerName.textContent = name.startsWith("@") ? name : `@${name}`;
+  if (tickerPrize) tickerPrize.textContent = `won ${prize}`;
+  if (tickerTime) tickerTime.textContent = "Just now";
+}
+
+function updateCurrentUserDisplay(user, channelId) {
+  if (userNameEl && user) {
+    userNameEl.textContent = user.global_name || user.displayName || user.username || "Player";
+  }
+  if (userTagEl && user) {
+    userTagEl.textContent = `@${user.username || "player"}`;
+  }
+  if (userAvatarEl && user) {
+    userAvatarEl.src = getDiscordAvatarUrl(user);
+    userAvatarEl.onerror = () => {
+      userAvatarEl.src = "https://cdn.discordapp.com/embed/avatars/0.png";
+    };
+  }
+  updateChannelDisplay();
+}
+
 btnSpin.addEventListener("click", () => {
   if (wheelSettings.hostOnlySpin && !isHostUser()) {
     spinStatusText.textContent = "Only the host can spin the wheel";
+    showToast("Only the host can spin the wheel", "warning");
     return;
   }
-  if (socket && socket.connected && discordSdk && discordSdk.channelId) {
-    socket.emit("wheel:spin", { channelId: discordSdk.channelId });
-  } else {
-    spinWheel();
-  }
+  spinWheel();
 });
 
-// Test Specific Angle Trigger (convenient for backend devs)
 btnTestAngle.addEventListener("click", () => {
-  const input = prompt("Enter target angle (0 - 359 degrees) to test backend landing:", "135");
+  const input = prompt("Enter target angle (0 - 359 degrees) to test wheel landing:", "135");
   if (input !== null) {
     const angle = parseFloat(input);
     if (!isNaN(angle)) {
@@ -1111,28 +1330,14 @@ btnTestAngle.addEventListener("click", () => {
   }
 });
 
-// Mode Tabs
 tabMembers.addEventListener("click", () => {
-  if (isSpinning || currentMode === "members") return;
-  currentMode = "members";
-  tabMembers.classList.add("active");
-  tabMembers.setAttribute("aria-selected", "true");
-  tabItems.classList.remove("active");
-  tabItems.setAttribute("aria-selected", "false");
-  renderWheel();
+  setWheelMode("members", true);
 });
 
 tabItems.addEventListener("click", () => {
-  if (isSpinning || currentMode === "items") return;
-  currentMode = "items";
-  tabItems.classList.add("active");
-  tabItems.setAttribute("aria-selected", "true");
-  tabMembers.classList.remove("active");
-  tabMembers.setAttribute("aria-selected", "false");
-  renderWheel();
+  setWheelMode("items", true);
 });
 
-// Modal Close Triggers
 modalCloseBtn.addEventListener("click", closeWinnerModal);
 btnModalDismiss.addEventListener("click", closeWinnerModal);
 
@@ -1148,7 +1353,6 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// Resize canvas on window resize
 window.addEventListener("resize", () => {
   if (confettiCanvas) {
     confettiCanvas.width = window.innerWidth;
@@ -1156,192 +1360,492 @@ window.addEventListener("resize", () => {
   }
 });
 
-/* ==========================================================================
-   DISCORD EMBEDDED APP SDK INTEGRATION (OPTIONAL & GRACEFUL FALLBACK)
-   ========================================================================== */
+document.querySelectorAll(".reaction-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const emoji = btn.getAttribute("data-emoji");
+    if (!emoji) return;
+    spawnReaction(emoji);
+    if (socket && socket.connected && currentChannelId) {
+      socket.emit("game:reaction", { channelId: currentChannelId, emoji });
+    }
+  });
+});
 
-let auth = null;
-const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
-
-async function setupDiscordSdk() {
-  if (!clientId) {
-    console.info("Discord Activity: Running in standalone dev mode (no VITE_DISCORD_CLIENT_ID set).");
+btnSavePrize?.addEventListener("click", () => {
+  if (!isHostUser()) {
+    showToast("Only the host can update the prize", "warning");
     return;
   }
+  const prize = giveawayPrizeInput?.value?.trim() || "Giveaway Prize 🎁";
+  if (socket && socket.connected && currentChannelId) {
+    socket.emit("giveaway:set_prize", { channelId: currentChannelId, prize }, (res) => {
+      if (res && res.success) {
+        showToast(`🎁 Prize saved: "${prize}"`, "success");
+      }
+    });
+  } else {
+    showToast(`🎁 Prize set: "${prize}"`);
+  }
+});
 
+btnSyncVc?.addEventListener("click", () => {
+  if (!isHostUser()) {
+    showToast("Only the host can sync participants", "warning");
+    return;
+  }
+  fetchDiscordChannelName();
+  if (socket && socket.connected && currentChannelId) {
+    socket.emit("giveaway:sync", { channelId: currentChannelId }, (res) => {
+      if (res && res.success) {
+        showToast("🔄 Voice Channel participants refreshed!", "success");
+      }
+    });
+  } else {
+    showToast("🔄 Synced active contenders!");
+  }
+});
+
+channelBadge?.addEventListener("click", async () => {
+  if (discordSdk && discordSdk.channelId) {
+    showToast("🔄 Refreshing Discord voice channel name...", "normal");
+    const name = await fetchDiscordChannelName();
+    if (name) {
+      showToast(`🎙️ Voice Channel: #${name}`, "success");
+    } else {
+      showToast("Voice channel synced", "normal");
+    }
+  } else {
+    const custom = prompt("Enter custom voice room name:", currentChannelName || "Voice Room");
+    if (custom && custom.trim().length > 0) {
+      currentChannelName = custom.trim().replace(/^#+/, "");
+      updateChannelDisplay();
+      if (socket && socket.connected && currentChannelId) {
+        socket.emit("room:update_channel_name", {
+          channelId: currentChannelId,
+          channelName: currentChannelName
+        });
+      }
+      showToast(`Room set to #${currentChannelName}`, "success");
+    }
+  }
+});
+
+btnResetGiveaway?.addEventListener("click", () => {
+  if (!isHostUser()) {
+    showToast("Only the host can reset the giveaway", "warning");
+    return;
+  }
+  if (confirm("Reset giveaway winners and restore all Voice Channel participants to the wheel?")) {
+    if (socket && socket.connected && currentChannelId) {
+      socket.emit("giveaway:reset", { channelId: currentChannelId }, (res) => {
+        if (res && res.success) {
+          showToast("✨ Giveaway reset successfully!", "success");
+        }
+      });
+    }
+  }
+});
+
+const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
+
+export async function fetchDiscordChannelName() {
+  if (!discordSdk || !discordSdk.channelId) {
+    return null;
+  }
   try {
-    const discordSdk = new DiscordSDK(clientId);
-    await discordSdk.ready();
-    console.log("Discord SDK is ready.");
+    console.log("[Discord SDK] Querying getChannel for channel_id:", discordSdk.channelId);
+    const channel = await discordSdk.commands.getChannel({ channel_id: discordSdk.channelId });
+    console.log("[Discord SDK] getChannel response:", channel);
+    const fetchedName = channel?.name || channel?.channel?.name;
+    if (fetchedName && typeof fetchedName === "string" && fetchedName.trim().length > 0) {
+      currentChannelName = fetchedName.trim();
+      updateChannelDisplay();
+      if (socket && socket.connected) {
+        socket.emit("room:update_channel_name", {
+          channelId: currentChannelId,
+          channelName: currentChannelName
+        });
+      }
+      return currentChannelName;
+    }
+  } catch (err) {
+    console.info("[Discord SDK] Channel fetch status:", err?.message || err);
+  }
+  return null;
+}
 
-    // Retrieve Voice Channel Name if inside a guild
-    if (discordSdk.channelId != null && discordSdk.guildId != null) {
+async function setupDiscordSdk() {
+  const isInsideDiscordIframe = typeof window !== "undefined" && (
+    (window.parent && window.parent !== window) ||
+    new URLSearchParams(window.location.search).has("frame_id")
+  );
+
+  let inDiscordSuccess = false;
+
+  if (clientId && isInsideDiscordIframe) {
+    try {
+      discordSdk = new DiscordSDK(clientId);
+
+      const readyPromise = discordSdk.ready();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Discord SDK handshake timeout")), 2500)
+      );
+      await Promise.race([readyPromise, timeoutPromise]);
+      console.log("[Discord SDK] Ready inside Discord Activity iframe.");
+
+      currentChannelId = discordSdk.channelId || discordSdk.instanceId || "voice-channel-lobby";
+
+      await fetchDiscordChannelName();
+
       try {
-        const channel = await discordSdk.commands.getChannel({ channel_id: discordSdk.channelId });
-        if (channel && channel.name) {
-          channelNameText.textContent = `Voice: #${channel.name}`;
+        const { code } = await discordSdk.commands.authorize({
+          client_id: clientId,
+          response_type: "code",
+          state: "",
+          prompt: "none",
+          scope: ["identify", "guilds"],
+        });
+
+        let tokenRes;
+        try {
+          tokenRes = await fetch("/.proxy/api/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code }),
+          });
+          if (!tokenRes.ok) throw new Error("Proxy token failed");
+        } catch {
+          tokenRes = await fetch("/api/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code }),
+          });
         }
-      } catch (err) {
-        console.warn("Could not fetch Discord channel info:", err);
-      }
-    }
 
-    // Attempt authorization if server token endpoint exists
-    try {
-      const { code } = await discordSdk.commands.authorize({
-        client_id: clientId,
-        response_type: "code",
-        state: "",
-        prompt: "none",
-        scope: ["identify", "guilds"],
-      });
-
-      const response = await fetch("/.proxy/api/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-
-      if (response.ok) {
-        const { access_token } = await response.json();
-        auth = await discordSdk.commands.authenticate({ access_token });
-
-        if (auth && auth.user) {
-          userNameEl.textContent = auth.user.global_name || auth.user.username;
-          userTagEl.textContent = `@${auth.user.username}`;
-          if (auth.user.avatar) {
-            userAvatarEl.src = `https://cdn.discordapp.com/avatars/${auth.user.id}/${auth.user.avatar}.png?size=128`;
+        if (tokenRes && tokenRes.ok) {
+          const { access_token } = await tokenRes.json();
+          auth = await discordSdk.commands.authenticate({ access_token });
+          if (auth && auth.user) {
+            currentUser = {
+              id: auth.user.id,
+              username: auth.user.username,
+              global_name: auth.user.global_name,
+              displayName: auth.user.global_name || auth.user.username,
+              avatar: getDiscordAvatarUrl(auth.user),
+              discriminator: auth.user.discriminator
+            };
+            inDiscordSuccess = true;
           }
-
-          // Connect to backend Socket.IO room for live VC sync
-          initSocketConnection(discordSdk.channelId, auth.user);
         }
+
+        await fetchDiscordChannelName();
+
+        try {
+          const instanceData = await discordSdk.commands.getInstanceConnectedParticipants();
+          if (instanceData && Array.isArray(instanceData.participants) && instanceData.participants.length > 0) {
+            const vcMembers = instanceData.participants.map((p, idx) => ({
+              id: p.id || `p-${idx}`,
+              userId: p.id,
+              displayName: p.nickname || p.global_name || p.username || `Member ${idx + 1}`,
+              username: p.username || `member${idx + 1}`,
+              label: p.nickname || p.global_name || p.username || `@Member${idx + 1}`,
+              avatar: getDiscordAvatarUrl(p),
+            }));
+            setParticipants(vcMembers);
+          }
+        } catch (pErr) {
+          console.info("getInstanceConnectedParticipants info:", pErr.message);
+        }
+      } catch (authError) {
+        console.warn("Discord SDK OAuth handshake skipped or in test mode:", authError);
       }
-    } catch (authError) {
-      console.warn("Discord SDK OAuth handshake skipped or in test mode:", authError);
+
+      try {
+        await discordSdk.subscribe("ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE", (event) => {
+          if (event && Array.isArray(event.participants) && event.participants.length > 0) {
+            const vcMembers = event.participants.map((p, idx) => ({
+              id: p.id || `p-${idx}`,
+              userId: p.id,
+              displayName: p.nickname || p.global_name || p.username || `Member ${idx + 1}`,
+              username: p.username || `member${idx + 1}`,
+              label: p.nickname || p.global_name || p.username || `@Member${idx + 1}`,
+              avatar: getDiscordAvatarUrl(p),
+            }));
+            setParticipants(vcMembers);
+          }
+        });
+      } catch (subErr) {
+        console.info("Activity instance participants subscription note:", subErr.message);
+      }
+    } catch (sdkError) {
+      console.info("Discord SDK not running in Discord client iframe; running standalone mode.", sdkError.message);
+    }
+  }
+
+  if (!inDiscordSuccess || !currentUser) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get("channelId") || urlParams.get("channel") || urlParams.get("room");
+    currentChannelId = currentChannelId || roomParam || "voice-channel-demo";
+
+    const nameParam = urlParams.get("channelName") || urlParams.get("channel_name") || urlParams.get("name");
+    if (nameParam && typeof nameParam === "string" && !/^\d+$/.test(nameParam.trim())) {
+      currentChannelName = nameParam.trim();
     }
 
-    // Subscribe to Discord Activity participants update
-    try {
-      await discordSdk.subscribe("ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE", (event) => {
-        if (event && Array.isArray(event.participants) && event.participants.length > 0) {
-          const vcMembers = event.participants.map((p, idx) => ({
-            id: p.id || `p-${idx}`,
-            label: `@${p.username || p.global_name || 'Member'}`,
-            avatar: p.avatar
-              ? `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.png?size=128`
-              : `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80`,
-          }));
-          setParticipants(vcMembers);
-        }
-      });
-    } catch (subErr) {
-      console.info("Activity instance participants subscription note:", subErr.message);
+    const savedUserId = localStorage.getItem("wheel-user-id") || `player-${Math.random().toString(36).substring(2, 7)}`;
+    localStorage.setItem("wheel-user-id", savedUserId);
+
+    const savedUserName = localStorage.getItem("wheel-username") || `Player_${savedUserId.slice(-4)}`;
+    const avatarList = [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=120&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=120&auto=format&fit=crop&q=80"
+    ];
+    const savedAvatar = localStorage.getItem("wheel-avatar") || avatarList[Math.floor(Math.random() * avatarList.length)];
+    localStorage.setItem("wheel-avatar", savedAvatar);
+
+    currentUser = {
+      id: savedUserId,
+      username: savedUserName,
+      global_name: savedUserName,
+      displayName: savedUserName,
+      avatar: savedAvatar
+    };
+    console.info(`[Dev Mode] Initialized local profile: ${currentUser.username} (${currentUser.id}) in room #${currentChannelId}`);
+  }
+
+  updateCurrentUserDisplay(currentUser, currentChannelId);
+
+  initSocketConnection(currentChannelId, currentUser);
+}
+
+function applyServerRoomState(state) {
+  if (!state) return;
+
+  if (state.hostUserId) {
+    currentRoomHostUserId = state.hostUserId;
+  }
+
+  if (state.channelName && typeof state.channelName === "string" && !/^\d+$/.test(state.channelName.trim()) && state.channelName.trim() !== "Voice Channel") {
+    currentChannelName = state.channelName.trim();
+    updateChannelDisplay();
+  }
+
+  if (state.giveaway && state.giveaway.prize && giveawayPrizeInput) {
+    giveawayPrizeInput.value = state.giveaway.prize;
+  }
+
+  if (state.giveaway && Array.isArray(state.giveaway.winners) && state.giveaway.winners.length > 0) {
+    updateRecentWinnerTicker(state.giveaway.winners[0]);
+  } else if (Array.isArray(state.spinHistory) && state.spinHistory.length > 0) {
+    updateRecentWinnerTicker(state.spinHistory[0]);
+  }
+
+  if (state.settings) {
+    if (typeof state.settings.eliminationMode === "boolean") {
+      wheelSettings.removeWinner = state.settings.eliminationMode;
     }
-  } catch (sdkError) {
-    console.info("Discord SDK not running in Discord client iframe; running standalone mode.", sdkError);
+    if (typeof state.settings.allowAnyoneToSpin === "boolean") {
+      wheelSettings.hostOnlySpin = !state.settings.allowAnyoneToSpin;
+    }
+    if (typeof state.settings.spinCooldownMs === "number") {
+      wheelSettings.spinDuration = state.settings.spinCooldownMs;
+    }
+    syncSettingsInputs();
+  }
+
+  if (Array.isArray(state.wheelSegments) && state.wheelSegments.length > 0) {
+    if (state.activePresetId === "items") {
+      MODES.items.slices = state.wheelSegments;
+      setWheelMode("items", false);
+    } else {
+      setParticipants(state.wheelSegments);
+      setWheelMode("members", false);
+    }
+  }
+
+  if (typeof state.wheelCumulativeAngle === "number" && state.wheelCumulativeAngle > 0 && !isSpinning) {
+    currentRotation = state.wheelCumulativeAngle;
+    wheelSvg.style.transform = `rotate(${currentRotation}deg) translateZ(0)`;
   }
 }
 
-/**
- * Connects to the backend Socket.io server (from server/server.js)
- * to automatically sync real voice channel participants in real time.
- */
 function initSocketConnection(channelId, user) {
+  if (socket && socket.connected) {
+    return;
+  }
+
+  updateConnectionStatus("connecting");
+
+  const socketPath = window.location.pathname.startsWith("/.proxy")
+    ? "/.proxy/api/socket.io"
+    : "/api/socket.io";
+
   try {
     socket = io({
-      path: "/api/socket.io",
+      path: socketPath,
       transports: ["websocket", "polling"],
+      timeout: 10000,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     socket.on("connect", () => {
       console.log("[Socket] Connected to backend room for VC channel:", channelId);
-      socket.emit("room:join", { channelId, user });
+      updateConnectionStatus("connected");
+      socket.emit("room:join", { channelId, channelName: currentChannelName, user }, (response) => {
+        if (response && response.success && response.state) {
+          applyServerRoomState(response.state);
+        }
+      });
+      if (discordSdk && discordSdk.channelId && (!currentChannelName || currentChannelName === "Voice Channel")) {
+        fetchDiscordChannelName();
+      }
+    });
+
+    socket.on("room:channel_name_updated", ({ channelName }) => {
+      if (channelName && typeof channelName === "string" && !/^\d+$/.test(channelName.trim()) && channelName.trim() !== "Voice Channel") {
+        currentChannelName = channelName.trim();
+        updateChannelDisplay();
+        console.log(`[Socket] Authoritative voice channel name updated: #${currentChannelName}`);
+      }
     });
 
     socket.on("room:state", (state) => {
-      if (state && Array.isArray(state.wheelSegments) && state.wheelSegments.length > 0) {
-        setParticipants(state.wheelSegments);
+      applyServerRoomState(state);
+    });
+
+    socket.on("room:user_joined", ({ participant, participants, hostUserId }) => {
+      if (hostUserId) currentRoomHostUserId = hostUserId;
+      if (Array.isArray(participants)) setParticipants(participants);
+      if (participant && participant.username) {
+        showToast(`👋 ${participant.username} joined the room`, "normal");
       }
-      if (state && state.hostUserId) {
-        currentRoomHostUserId = state.hostUserId;
+    });
+
+    socket.on("room:user_left", ({ userId, username, newHostId, participants }) => {
+      if (newHostId) currentRoomHostUserId = newHostId;
+      if (Array.isArray(participants)) setParticipants(participants);
+      if (username) {
+        showToast(`🚪 ${username} left the room`, "normal");
       }
-      if (state && state.settings) {
-        if (typeof state.settings.eliminationMode === "boolean") {
-          wheelSettings.removeWinner = state.settings.eliminationMode;
-        }
-        if (typeof state.settings.allowAnyoneToSpin === "boolean") {
-          wheelSettings.hostOnlySpin = !state.settings.allowAnyoneToSpin;
-        }
-        syncSettingsInputs();
+    });
+
+    socket.on("wheel:segments_updated", ({ segments, activePresetId }) => {
+      if (!Array.isArray(segments) || segments.length === 0) return;
+      if (activePresetId === "items") {
+        MODES.items.slices = segments;
+        setWheelMode("items", false);
+      } else {
+        setParticipants(segments);
+        setWheelMode("members", false);
       }
     });
 
     socket.on("wheel:settings_updated", ({ settings }) => {
-      if (settings) {
-        if (typeof settings.eliminationMode === "boolean") {
-          wheelSettings.removeWinner = settings.eliminationMode;
-        }
-        if (typeof settings.allowAnyoneToSpin === "boolean") {
-          wheelSettings.hostOnlySpin = !settings.allowAnyoneToSpin;
-        }
-        syncSettingsInputs();
+      if (!settings) return;
+      if (typeof settings.eliminationMode === "boolean") {
+        wheelSettings.removeWinner = settings.eliminationMode;
       }
-    });
-
-    socket.on("wheel:segments_updated", ({ segments }) => {
-      if (Array.isArray(segments) && segments.length > 0) {
-        setParticipants(segments);
+      if (typeof settings.allowAnyoneToSpin === "boolean") {
+        wheelSettings.hostOnlySpin = !settings.allowAnyoneToSpin;
       }
-    });
-
-    socket.on("room:user_joined", ({ participants }) => {
-      if (Array.isArray(participants) && participants.length > 0) {
-        setParticipants(participants);
+      if (typeof settings.spinCooldownMs === "number") {
+        wheelSettings.spinDuration = settings.spinCooldownMs;
       }
+      syncSettingsInputs();
     });
 
     socket.on("wheel:spin_started", (spinData) => {
-      spinWheel(spinData.targetAngle, spinData.durationMs, spinData.winningSegment);
+      spinWheelFromServer(spinData);
     });
+
+    socket.on("wheel:spin_ended", (result) => {
+      if (result && Array.isArray(result.currentSegments)) {
+        setTimeout(() => {
+          if (currentMode === "members") {
+            setParticipants(result.currentSegments);
+          } else {
+            MODES.items.slices = result.currentSegments;
+            renderWheel();
+          }
+        }, 1600);
+      }
+      if (result && result.giveawayWinner) {
+        updateRecentWinnerTicker(result.giveawayWinner);
+      }
+    });
+
+    socket.on("giveaway:winner_drawn", (data) => {
+      updateRecentWinnerTicker(data);
+    });
+
+    socket.on("giveaway:prize_updated", ({ prize }) => {
+      if (giveawayPrizeInput) giveawayPrizeInput.value = prize;
+      showToast(`🎁 Prize updated: "${prize}"`, "normal");
+    });
+
+    socket.on("giveaway:reset", () => {
+      showToast("🔄 Giveaway has been reset!", "normal");
+    });
+
+    socket.on("game:reaction", ({ username, emoji }) => {
+      spawnReaction(emoji);
+    });
+
+    socket.on("wheel:error", ({ message }) => {
+      btnSpin.disabled = false;
+      btnSpinText.textContent = "SPIN THE WHEEL";
+      spinStatusText.textContent = message || "Spin rejected";
+      showToast(message || "Wheel error", "warning");
+    });
+
+    socket.on("connect_error", (err) => {
+      console.warn("[Socket] Connection error:", err.message);
+      updateConnectionStatus("offline");
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.warn("[Socket] Disconnected:", reason);
+      updateConnectionStatus("offline");
+    });
+
   } catch (err) {
     console.warn("[Socket] Could not connect to socket server:", err);
+    updateConnectionStatus("offline");
   }
 }
 
-/**
- * Public helper to dynamically populate the wheel with real members from the voice channel.
- * 
- * @param {Array<{ id?: string, label?: string, username?: string, avatar?: string }>} memberList
- */
 export function setParticipants(memberList) {
   if (!Array.isArray(memberList) || memberList.length === 0) return;
 
   MODES.members.slices = memberList.map((m, index) => {
-    const handle = m.label || (m.username ? `@${m.username}` : `@Member${index + 1}`);
-    let avatarUrl = m.avatar || null;
-    if (!avatarUrl && m.id && m.avatarId) {
-      avatarUrl = `https://cdn.discordapp.com/avatars/${m.id}/${m.avatarId}.png?size=128`;
-    }
+    const rawName = m.displayName || m.global_name || m.label || (m.username ? `@${m.username}` : `Member ${index + 1}`);
+    const isPh = !!m.isPlaceholder;
     return {
       id: m.id || `member-${index}`,
-      label: handle,
-      avatar: avatarUrl || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80`,
+      userId: m.userId || m.id || null,
+      displayName: m.displayName || m.global_name || m.username || null,
+      username: m.username || null,
+      label: rawName,
+      avatar: isPh ? null : getDiscordAvatarUrl(m),
       colorTheme: index % 3,
+      isPlaceholder: isPh
     };
   });
 
   if (currentMode === "members") {
     renderWheel();
+  } else {
+    renderRoster();
   }
 }
 
-// Expose on window for easy access
 window.setParticipants = setParticipants;
 
-/* ==========================================================================
-   THEME TOGGLE CONTROLLER
-   ========================================================================== */
 const themeToggleBtn = document.getElementById("theme-toggle-btn");
 
 function initTheme() {
@@ -1361,16 +1865,12 @@ if (themeToggleBtn) {
   });
 }
 
-/* ==========================================================================
-   INITIALIZATION
-   ========================================================================== */
 initTheme();
 renderWheel();
 renderBezelStuds();
 initAmbientParticles();
 setupDiscordSdk();
 
-// Calm Music Mute Controller & Continuous Background Soundtrack
 const musicToggleBtn = document.getElementById("music-toggle-btn");
 if (musicToggleBtn) {
   musicToggleBtn.addEventListener("click", () => {
@@ -1378,7 +1878,6 @@ if (musicToggleBtn) {
   });
 }
 
-// Start background soundtrack on first interaction according to browser autoplay requirements
 const handleFirstAudioInteraction = () => {
   if (!isMusicMuted) {
     startAmbientMusic();
@@ -1392,12 +1891,8 @@ const handleFirstAudioInteraction = () => {
 window.addEventListener("pointerdown", handleFirstAudioInteraction, { once: true });
 window.addEventListener("keydown", handleFirstAudioInteraction, { once: true });
 
-// Setup initial UI indicator
 setMusicMuteState(isMusicMuted);
 
-/* ==========================================================================
-   WHEEL SETTINGS CONTROLLER
-   ========================================================================== */
 function syncSettingsInputs() {
   if (settingHostOnly) settingHostOnly.checked = wheelSettings.hostOnlySpin;
   if (settingRemoveWinner) settingRemoveWinner.checked = wheelSettings.removeWinner;
@@ -1411,9 +1906,9 @@ function initWheelSettings() {
 
   function saveSettings() {
     localStorage.setItem("wheel-settings", JSON.stringify(wheelSettings));
-    if (socket && socket.connected && discordSdk && discordSdk.channelId) {
+    if (socket && socket.connected && currentChannelId && isHostUser()) {
       socket.emit("wheel:update_settings", {
-        channelId: discordSdk.channelId,
+        channelId: currentChannelId,
         settings: {
           eliminationMode: wheelSettings.removeWinner,
           allowAnyoneToSpin: !wheelSettings.hostOnlySpin,
@@ -1477,9 +1972,6 @@ function initWheelSettings() {
 
 initWheelSettings();
 
-/* ==========================================================================
-   CONTENDERS MODAL CONTROLLER
-   ========================================================================== */
 function initContendersModal() {
   function openContenders() {
     contendersModal?.classList.add("active");
@@ -1520,11 +2012,8 @@ function initContendersModal() {
 
 initContendersModal();
 
-/* ==========================================================================
-   DROP POOL HOST CUSTOMIZER CONTROLLER
-   ========================================================================== */
 function initDropPoolHostControls() {
-  // Add item form submission
+
   addDropItemForm?.addEventListener("submit", (e) => {
     e.preventDefault();
     if (!isHostUser()) return;
@@ -1552,15 +2041,14 @@ function initDropPoolHostControls() {
     renderWheel();
     renderRoster();
 
-    if (socket && socket.connected && discordSdk && discordSdk.channelId) {
+    if (socket && socket.connected && currentChannelId) {
       socket.emit("wheel:update_segments", {
-        channelId: discordSdk.channelId,
+        channelId: currentChannelId,
         segments: MODES.items.slices,
       });
     }
   });
 
-  // Quick emoji buttons
   document.querySelectorAll(".quick-emoji-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const emoji = btn.getAttribute("data-emoji");
@@ -1570,7 +2058,6 @@ function initDropPoolHostControls() {
     });
   });
 
-  // Reset to default drop items
   btnResetDrops?.addEventListener("click", () => {
     if (!isHostUser()) return;
     MODES.items.slices = JSON.parse(JSON.stringify(DEFAULT_DROP_ITEMS));
@@ -1578,15 +2065,14 @@ function initDropPoolHostControls() {
     renderWheel();
     renderRoster();
 
-    if (socket && socket.connected && discordSdk && discordSdk.channelId) {
+    if (socket && socket.connected && currentChannelId) {
       socket.emit("wheel:update_segments", {
-        channelId: discordSdk.channelId,
+        channelId: currentChannelId,
         segments: MODES.items.slices,
       });
     }
   });
 
-  // Delegate click for delete buttons inside rosterChips
   rosterChips?.addEventListener("click", (e) => {
     const deleteBtn = e.target.closest(".chip-delete-btn");
     if (!deleteBtn) return;
@@ -1605,9 +2091,9 @@ function initDropPoolHostControls() {
     renderWheel();
     renderRoster();
 
-    if (socket && socket.connected && discordSdk && discordSdk.channelId) {
+    if (socket && socket.connected && currentChannelId) {
       socket.emit("wheel:update_segments", {
-        channelId: discordSdk.channelId,
+        channelId: currentChannelId,
         segments: MODES.items.slices,
       });
     }
@@ -1615,3 +2101,9 @@ function initDropPoolHostControls() {
 }
 
 initDropPoolHostControls();
+
+window.addEventListener("pointerdown", () => {
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+}, { once: true });

@@ -4,20 +4,25 @@ export class WheelEngine {
       throw new Error("Cannot select winner from empty segments list");
     }
 
-    const totalWeight = segments.reduce((sum, seg) => sum + (seg.weight || 1), 0);
+    const eligible = segments.filter((s) => !s.isPlaceholder);
+    const pool = eligible.length > 0 ? eligible : segments;
+
+    const totalWeight = pool.reduce((sum, seg) => sum + (seg.weight || 1), 0);
     let randomWeight = Math.random() * totalWeight;
 
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
+    let selectedSegment = pool[pool.length - 1];
+    for (let i = 0; i < pool.length; i++) {
+      const seg = pool[i];
       const weight = seg.weight || 1;
       if (randomWeight < weight) {
-        return { segment: seg, index: i };
+        selectedSegment = seg;
+        break;
       }
       randomWeight -= weight;
     }
 
-    const lastIndex = segments.length - 1;
-    return { segment: segments[lastIndex], index: lastIndex };
+    const indexInOriginal = segments.findIndex((s) => s.id === selectedSegment.id);
+    return { segment: selectedSegment, index: indexInOriginal !== -1 ? indexInOriginal : 0 };
   }
 
   static generateSpin(segments, currentWheelAngle = 0) {
@@ -61,3 +66,4 @@ export class WheelEngine {
     };
   }
 }
+

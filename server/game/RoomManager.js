@@ -1,6 +1,33 @@
 import { PRESET_WHEELS, DEFAULT_PALETTE } from "./presets.js";
 import { WheelEngine } from "./WheelEngine.js";
 
+export function getAvatarUrl(userOrParticipant) {
+  if (!userOrParticipant) return "https://cdn.discordapp.com/embed/avatars/0.png";
+  const avatar = userOrParticipant.avatar;
+  const id = userOrParticipant.id || userOrParticipant.userId;
+
+  if (typeof avatar === "string" && (avatar.startsWith("http://") || avatar.startsWith("https://") || avatar.startsWith("data:"))) {
+    return avatar;
+  }
+
+  if (id && typeof avatar === "string" && avatar.trim().length > 0) {
+    const isAnimated = avatar.startsWith("a_");
+    const ext = isAnimated ? "gif" : "png";
+    return `https://cdn.discordapp.com/avatars/${id}/${avatar}.${ext}?size=128`;
+  }
+
+  if (id && /^\d+$/.test(id)) {
+    try {
+      const idx = Number((BigInt(id) >> 22n) % 6n);
+      return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
+    } catch {
+      return `https://cdn.discordapp.com/embed/avatars/0.png`;
+    }
+  }
+
+  return "https://cdn.discordapp.com/embed/avatars/0.png";
+}
+
 export class RoomManager {
   constructor() {
     this.rooms = new Map();
@@ -20,6 +47,7 @@ export class RoomManager {
       const defaultPreset = PRESET_WHEELS.default_prizes;
       this.rooms.set(channelId, {
         channelId,
+        channelName: "Voice Channel",
         participants: new Map(),
         hostUserId: null,
         wheelSegments: JSON.parse(JSON.stringify(defaultPreset.segments)),
@@ -82,12 +110,13 @@ export class RoomManager {
       ];
     } else if (players.length === 1) {
       const p = players[0];
+      const displayName = p.displayName || p.global_name || p.username || "Contender";
       segments = [
         {
           id: `player-${p.id}`,
           userId: p.id,
-          label: p.username,
-          avatar: p.avatar,
+          label: displayName,
+          avatar: getAvatarUrl(p),
           color: DEFAULT_PALETTE[0],
           weight: 1
         },
@@ -103,8 +132,8 @@ export class RoomManager {
       segments = players.map((p, index) => ({
         id: `player-${p.id}`,
         userId: p.id,
-        label: p.username,
-        avatar: p.avatar,
+        label: p.displayName || p.global_name || p.username || `Contender ${index + 1}`,
+        avatar: getAvatarUrl(p),
         color: DEFAULT_PALETTE[index % DEFAULT_PALETTE.length],
         weight: 1
       }));
@@ -156,19 +185,39 @@ export class RoomManager {
     return room;
   }
 
-  joinRoom(channelId, user, socketId) {
+  setChannelName(channelId, channelName) {
+    const room = this.getOrCreateRoom(channelId);
+    if (channelName && typeof channelName === "string") {
+      const clean = channelName.trim();
+      if (clean && clean !== "Voice Channel" && !/^\d+$/.test(clean)) {
+        room.channelName = clean;
+      }
+    }
+    return room.channelName;
+  }
+
+  joinRoom(channelId, user, socketId, channelName = null) {
     const room = this.getOrCreateRoom(channelId);
     const userId = user?.id || socketId;
     const isNew = !room.participants.has(userId);
+
+    if (channelName && typeof channelName === "string" && !/^\d+$/.test(channelName.trim()) && channelName.trim() !== "Voice Channel") {
+      room.channelName = channelName.trim();
+    }
 
     if (!room.hostUserId || !room.participants.has(room.hostUserId)) {
       room.hostUserId = userId;
     }
 
+    const displayName = user?.displayName || user?.global_name || user?.nickname || user?.username || `Player_${socketId.slice(0, 4)}`;
+    const username = user?.username || displayName;
+
     const participant = {
       id: userId,
-      username: user?.username || user?.global_name || `Player_${socketId.slice(0, 4)}`,
-      avatar: user?.avatar || null,
+      displayName,
+      username,
+      global_name: user?.global_name || null,
+      avatar: getAvatarUrl(user),
       discriminator: user?.discriminator || "0",
       socketId,
       joinedAt: room.participants.get(userId)?.joinedAt || Date.now(),
@@ -257,10 +306,14 @@ export class RoomManager {
     const sanitizedSegments = segments.map((seg, i) => ({
       id: seg.id || `seg-${Date.now()}-${i}`,
       userId: seg.userId || null,
-      avatar: seg.avatar || null,
+      avatar: getAvatarUrl(seg),
+      icon: seg.icon || null,
+      sub: seg.sub || null,
+      colorTheme: typeof seg.colorTheme === "number" ? seg.colorTheme : (i % 3),
       label: String(seg.label || `Option ${i + 1}`).trim().slice(0, 50),
       color: seg.color || DEFAULT_PALETTE[i % DEFAULT_PALETTE.length],
-      weight: Math.max(1, Math.min(10, Number(seg.weight) || 1))
+      weight: Math.max(1, Math.min(10, Number(seg.weight) || 1)),
+      isPlaceholder: !!seg.isPlaceholder
     }));
 
     room.wheelSegments = sanitizedSegments;
@@ -331,7 +384,7 @@ export class RoomManager {
     room.activeSpin = {
       ...spin,
       spinnerId: userId,
-      spinnerName: participant?.username || "Host",
+      spinnerName: participant?.displayName || participant?.global_name || participant?.username || "Host",
       startedAt: Date.now(),
       endsAt: Date.now() + spin.durationMs
     };
@@ -364,13 +417,18 @@ export class RoomManager {
     if (winningSegment.userId) {
       const winnerParticipant = room.participants.get(winningSegment.userId) || {
         id: winningSegment.userId,
+        displayName: winningSegment.label,
         username: winningSegment.label,
-        avatar: winningSegment.avatar || null
+        avatar: getAvatarUrl(winningSegment)
       };
 
       giveawayWinner = {
         round: room.giveaway.winners.length + 1,
-        winner: winnerParticipant,
+        winner: {
+          ...winnerParticipant,
+          displayName: winnerParticipant.displayName || winnerParticipant.global_name || winnerParticipant.username || winningSegment.label,
+          avatar: getAvatarUrl(winnerParticipant)
+        },
         prize: room.giveaway.prize,
         timestamp: Date.now()
       };
@@ -420,6 +478,7 @@ export class RoomManager {
     const room = this.getOrCreateRoom(channelId);
     return {
       channelId: room.channelId,
+      channelName: room.channelName || "Voice Channel",
       participants: Array.from(room.participants.values()),
       hostUserId: room.hostUserId,
       wheelSegments: room.wheelSegments,
@@ -445,3 +504,4 @@ export class RoomManager {
 }
 
 export const roomManager = new RoomManager();
+

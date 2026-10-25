@@ -4,7 +4,7 @@ export function setupSocketHandler(io) {
   io.on("connection", (socket) => {
     console.log(`[Socket] Client connected: ${socket.id}`);
 
-    socket.on("room:join", ({ channelId, user }, callback) => {
+    socket.on("room:join", ({ channelId, channelName, user }, callback) => {
       try {
         if (!channelId) {
           throw new Error("channelId is required to join a room");
@@ -14,7 +14,7 @@ export function setupSocketHandler(io) {
         socket.channelId = channelId;
         socket.userId = user?.id || socket.id;
 
-        const { room, participant, wheelUpdated } = roomManager.joinRoom(channelId, user, socket.id);
+        const { room, participant, wheelUpdated } = roomManager.joinRoom(channelId, user, socket.id, channelName);
         const state = roomManager.getSerializedState(channelId);
 
         if (typeof callback === "function") {
@@ -43,6 +43,29 @@ export function setupSocketHandler(io) {
           callback({ success: false, error: err.message });
         } else {
           socket.emit("error", { message: err.message });
+        }
+      }
+    });
+
+    socket.on("room:update_channel_name", ({ channelId, channelName }, callback) => {
+      try {
+        const targetChannelId = channelId || socket.channelId;
+        if (!targetChannelId || !channelName || typeof channelName !== "string") {
+          throw new Error("channelId and channelName are required");
+        }
+        const updatedName = roomManager.setChannelName(targetChannelId, channelName);
+        io.to(targetChannelId).emit("room:channel_name_updated", {
+          channelId: targetChannelId,
+          channelName: updatedName
+        });
+        console.log(`[Room] Channel name updated for ${targetChannelId}: #${updatedName}`);
+        if (typeof callback === "function") {
+          callback({ success: true, channelName: updatedName });
+        }
+      } catch (err) {
+        console.error("[Room:Update Channel Name Error]", err.message);
+        if (typeof callback === "function") {
+          callback({ success: false, error: err.message });
         }
       }
     });
@@ -326,3 +349,4 @@ export function setupSocketHandler(io) {
     });
   });
 }
+

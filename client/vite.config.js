@@ -1,6 +1,5 @@
 import {defineConfig} from 'vite';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   envDir: '../',
   server: {
@@ -22,7 +21,7 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/\.proxy/, ''),
       },
       '/socket.io': {
-        target: 'http://localhost:3001/api/socket.io',
+        target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
         ws: true,
@@ -34,3 +33,4 @@ export default defineConfig({
     },
   },
 });
+

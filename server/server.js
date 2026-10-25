@@ -8,6 +8,7 @@ import { setupSocketHandler } from "./game/socketHandler.js";
 import { roomManager } from "./game/RoomManager.js";
 import { PRESET_WHEELS } from "./game/presets.js";
 
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -121,6 +122,21 @@ app.post("/api/room/:channelId/giveaway/prize", (req, res) => {
   }
 });
 
+app.post("/api/room/:channelId/channel-name", (req, res) => {
+  const { channelId } = req.params;
+  const { channelName } = req.body;
+  try {
+    const updated = roomManager.setChannelName(channelId, channelName);
+    io.to(channelId).emit("room:channel_name_updated", {
+      channelId,
+      channelName: updated
+    });
+    res.json({ success: true, channelName: updated });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 app.post("/api/room/:channelId/giveaway/sync", (req, res) => {
   const { channelId } = req.params;
   try {
@@ -174,7 +190,17 @@ app.post("/api/room/:channelId/spin", (req, res) => {
   }
 });
 
+const clientDistPath = path.resolve(__dirname, "../client/dist");
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(clientDistPath, "index.html"));
+  });
+}
+
 httpServer.listen(port, () => {
   console.log(`[Spin-The-Wheel Server] Listening on http://localhost:${port}`);
   console.log(`[Spin-The-Wheel Server] WebSocket & Socket.IO active`);
 });
+
