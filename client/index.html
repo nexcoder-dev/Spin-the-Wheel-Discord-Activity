@@ -13,6 +13,100 @@
     />
   </head>
   <body>
+    <div class="video-bg-container" id="video-bg-container" aria-hidden="true">
+      <video
+        id="bg-video"
+        class="bg-video"
+        autoplay
+        loop
+        muted
+        playsinline
+        webkit-playsinline
+        preload="auto"
+      >
+        <source src="/background.mp4" type="video/mp4" />
+      </video>
+      <div class="video-bg-overlay"></div>
+    </div>
+
+    <div id="loading-screen" class="loading-screen" aria-live="polite" aria-busy="true">
+      <div class="loading-backdrop"></div>
+      <div class="loading-ambient-glow" aria-hidden="true"></div>
+
+      <div class="loading-card">
+        <div class="loading-icon-wrapper">
+          <div class="loading-wheel-graphic">
+            <svg class="loading-wheel-ring" viewBox="0 0 120 120" aria-hidden="true">
+              <defs>
+                <linearGradient id="loading-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#8b5cf6" />
+                  <stop offset="50%" stop-color="#c084fc" />
+                  <stop offset="100%" stop-color="#ec4899" />
+                </linearGradient>
+              </defs>
+              <circle class="ring-bg" cx="60" cy="60" r="50" />
+              <circle class="ring-pulse" cx="60" cy="60" r="50" />
+              <circle class="ring-progress" id="loading-ring-progress" cx="60" cy="60" r="50" />
+            </svg>
+            <div class="loading-center-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="loading-spin-svg">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+              </svg>
+            </div>
+            <div class="loading-sparkle-dot s1">✦</div>
+            <div class="loading-sparkle-dot s2">✦</div>
+          </div>
+        </div>
+
+        <div class="loading-header">
+          <h1 class="loading-title">
+            SPIN THE <span class="gradient-text">WHEEL</span>
+          </h1>
+          <p class="loading-subtitle">Discord Voice Arena &amp; Giveaways</p>
+        </div>
+
+        <div class="loading-progress-box">
+          <div class="loading-bar-track">
+            <div class="loading-bar-fill" id="loading-bar-fill" style="width: 0%;"></div>
+            <div class="loading-bar-glow"></div>
+            <div class="loading-bar-sheen"></div>
+          </div>
+
+          <div class="loading-status-meta">
+            <div class="loading-status-indicator">
+              <span class="loading-dot-pulse"></span>
+              <span class="loading-status-message" id="loading-status-message">Initializing arena...</span>
+            </div>
+            <span class="loading-percent" id="loading-percent">0%</span>
+          </div>
+        </div>
+
+        <div class="loading-check-pills">
+          <div class="check-pill" id="pill-fonts">
+            <span class="pill-status-icon">⏳</span>
+            <span class="pill-label">Typography</span>
+          </div>
+          <div class="check-pill" id="pill-video">
+            <span class="pill-status-icon">⏳</span>
+            <span class="pill-label">Motion FX</span>
+          </div>
+          <div class="check-pill" id="pill-discord">
+            <span class="pill-status-icon">⏳</span>
+            <span class="pill-label">Discord SDK</span>
+          </div>
+          <div class="check-pill" id="pill-socket">
+            <span class="pill-status-icon">⏳</span>
+            <span class="pill-label">Voice Lobby</span>
+          </div>
+        </div>
+
+        <div class="loading-footer-tip">
+          <span class="tip-icon">💡</span>
+          <span class="tip-text" id="loading-tip-text">Spin the wheel in your voice channel with server members!</span>
+        </div>
+      </div>
+    </div>
+
     <div id="app">
       
       <div class="ambient-glow ambient-glow-1" aria-hidden="true"></div>
@@ -622,6 +716,25 @@
                 </div>
                 <label class="toggle-switch">
                   <input type="checkbox" id="setting-show-confetti" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-item-card">
+              <div class="setting-item-main">
+                <div class="setting-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="setting-svg-icon">
+                    <polygon points="23 7 16 12 23 17 23 7" />
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                  </svg>
+                </div>
+                <div class="setting-info">
+                  <div class="setting-name">Motion Background</div>
+                  <div class="setting-desc">Cinematic video backdrop</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-bg-video" checked />
                   <span class="toggle-slider"></span>
                 </label>
               </div>

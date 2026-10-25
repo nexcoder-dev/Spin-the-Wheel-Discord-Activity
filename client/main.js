@@ -155,6 +155,7 @@ export const wheelSettings = {
   showConfetti: savedSettings.showConfetti ?? true,
   spinDuration: savedSettings.spinDuration ?? 5000,
   wheelStyle: savedSettings.wheelStyle ?? "neon",
+  bgVideo: savedSettings.bgVideo ?? true,
 };
 
 export function isHostUser() {
@@ -170,8 +171,10 @@ const settingsCloseBtn = document.getElementById("settings-close-btn");
 const settingHostOnly = document.getElementById("setting-host-only");
 const settingRemoveWinner = document.getElementById("setting-remove-winner");
 const settingShowConfetti = document.getElementById("setting-show-confetti");
+const settingBgVideo = document.getElementById("setting-bg-video");
 const settingSpinDuration = document.getElementById("setting-spin-duration");
 const settingWheelStyle = document.getElementById("setting-wheel-style");
+const bgVideoEl = document.getElementById("bg-video");
 
 let audioCtx = null;
 let musicMasterGain = null;
@@ -1876,12 +1879,180 @@ if (themeToggleBtn) {
     renderWheel();
   });
 }
+function initLoadingScreen() {
+  const loadingScreen = document.getElementById("loading-screen");
+  const appContainer = document.getElementById("app");
+  const barFill = document.getElementById("loading-bar-fill");
+  const ringProgress = document.getElementById("loading-ring-progress");
+  const percentText = document.getElementById("loading-percent");
+  const statusMessage = document.getElementById("loading-status-message");
+  const tipText = document.getElementById("loading-tip-text");
+
+  const pillFonts = document.getElementById("pill-fonts");
+  const pillVideo = document.getElementById("pill-video");
+  const pillDiscord = document.getElementById("pill-discord");
+  const pillSocket = document.getElementById("pill-socket");
+
+  const bgVideo = document.getElementById("bg-video");
+
+  if (bgVideo) {
+    bgVideo.muted = true;
+    bgVideo.playsInline = true;
+    if (wheelSettings.bgVideo === false) {
+      bgVideo.classList.add("is-hidden");
+      bgVideo.pause();
+    }
+  }
+
+  const TIPS = [
+    "Spin the wheel in your Voice Channel with server friends!",
+    "Switch to Item Drops mode to raffle Nitro, Server Roles, and Custom Loot!",
+    "Customize wheel entries, avatars, and prize amounts in real-time!",
+    "Click the settings icon to customize spin duration and wheel themes!",
+    "Simulate spins with random angles or test client animations instantly!"
+  ];
+  let tipIndex = 0;
+  const tipInterval = setInterval(() => {
+    tipIndex = (tipIndex + 1) % TIPS.length;
+    if (tipText) {
+      tipText.style.opacity = "0";
+      setTimeout(() => {
+        tipText.textContent = TIPS[tipIndex];
+        tipText.style.opacity = "1";
+      }, 250);
+    }
+  }, 2400);
+
+  const TOTAL_DURATION_MS = 10000;
+  const startTime = performance.now();
+  let isDone = false;
+  let animFrameId = null;
+
+  function setPillDone(pillEl) {
+    if (!pillEl) return;
+    pillEl.classList.add("ready");
+    const icon = pillEl.querySelector(".pill-status-icon");
+    if (icon) icon.textContent = "✓";
+  }
+
+  function setStatus(msg) {
+    if (statusMessage) statusMessage.textContent = msg;
+  }
+
+  function tickProgress() {
+    if (isDone) return;
+    const elapsed = performance.now() - startTime;
+    const ratio = Math.min(1, elapsed / TOTAL_DURATION_MS);
+    const percent = Math.min(100, Math.floor(ratio * 100));
+
+    if (barFill) barFill.style.width = `${ratio * 100}%`;
+    if (percentText) percentText.textContent = `${percent}%`;
+
+    if (ringProgress) {
+      const circumference = 314;
+      const offset = circumference - ratio * circumference;
+      ringProgress.style.strokeDashoffset = String(offset);
+    }
+
+    if (ratio >= 0.25) {
+      setPillDone(pillFonts);
+      setStatus("Buffering motion background...");
+    }
+    if (ratio >= 0.50) {
+      setPillDone(pillVideo);
+      setStatus("Initializing Discord SDK...");
+    }
+    if (ratio >= 0.75) {
+      setPillDone(pillDiscord);
+      setStatus("Connecting to Voice Lobby...");
+    }
+    if (ratio >= 0.92) {
+      setPillDone(pillSocket);
+      setStatus("Preparing wheel arena...");
+    }
+
+    if (ratio < 1) {
+      animFrameId = requestAnimationFrame(tickProgress);
+    } else {
+      finishLoading();
+    }
+  }
+
+  animFrameId = requestAnimationFrame(tickProgress);
+
+  function finishLoading() {
+    if (isDone) return;
+    isDone = true;
+    clearInterval(tipInterval);
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+
+    setPillDone(pillFonts);
+    setPillDone(pillVideo);
+    setPillDone(pillDiscord);
+    setPillDone(pillSocket);
+
+    setStatus("Ready! Launching arena...");
+    if (percentText) percentText.textContent = "100%";
+    if (barFill) barFill.style.width = "100%";
+    if (ringProgress) ringProgress.style.strokeDashoffset = "0";
+
+    if (bgVideo && wheelSettings.bgVideo !== false) {
+      bgVideo.play().catch(() => {
+        const resumeOnFirstTouch = () => {
+          bgVideo.play().catch(() => {});
+          window.removeEventListener("pointerdown", resumeOnFirstTouch);
+          window.removeEventListener("keydown", resumeOnFirstTouch);
+        };
+        window.addEventListener("pointerdown", resumeOnFirstTouch, { once: true });
+        window.addEventListener("keydown", resumeOnFirstTouch, { once: true });
+      });
+    }
+
+    setTimeout(() => {
+      loadingScreen?.classList.add("loaded");
+      loadingScreen?.setAttribute("aria-busy", "false");
+      appContainer?.classList.add("is-visible");
+
+      setTimeout(() => {
+        if (loadingScreen) {
+          loadingScreen.style.display = "none";
+        }
+      }, 700);
+    }, 350);
+  }
+
+  (async () => {
+    try {
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+    } catch {}
+  })();
+
+  (async () => {
+    if (bgVideo && wheelSettings.bgVideo !== false) {
+      if (bgVideo.readyState < 2) {
+        await new Promise((res) => {
+          bgVideo.addEventListener("canplay", res, { once: true });
+          setTimeout(res, 3000);
+        });
+      }
+      bgVideo.play().catch(() => {});
+    }
+  })();
+
+  (async () => {
+    try {
+      await setupDiscordSdk();
+    } catch {}
+  })();
+}
 
 initTheme();
 renderWheel();
 renderBezelStuds();
 initAmbientParticles();
-setupDiscordSdk();
+initLoadingScreen();
 
 const musicToggleBtn = document.getElementById("music-toggle-btn");
 if (musicToggleBtn) {
@@ -1909,6 +2080,7 @@ function syncSettingsInputs() {
   if (settingHostOnly) settingHostOnly.checked = wheelSettings.hostOnlySpin;
   if (settingRemoveWinner) settingRemoveWinner.checked = wheelSettings.removeWinner;
   if (settingShowConfetti) settingShowConfetti.checked = wheelSettings.showConfetti;
+  if (settingBgVideo) settingBgVideo.checked = wheelSettings.bgVideo;
   if (settingSpinDuration) settingSpinDuration.value = String(wheelSettings.spinDuration);
   if (settingWheelStyle) settingWheelStyle.value = wheelSettings.wheelStyle;
 }
@@ -1943,6 +2115,20 @@ function initWheelSettings() {
   settingShowConfetti?.addEventListener("change", (e) => {
     wheelSettings.showConfetti = e.target.checked;
     saveSettings();
+  });
+
+  settingBgVideo?.addEventListener("change", (e) => {
+    wheelSettings.bgVideo = e.target.checked;
+    saveSettings();
+    if (bgVideoEl) {
+      if (wheelSettings.bgVideo) {
+        bgVideoEl.classList.remove("is-hidden");
+        bgVideoEl.play().catch(() => {});
+      } else {
+        bgVideoEl.classList.add("is-hidden");
+        bgVideoEl.pause();
+      }
+    }
   });
 
   settingSpinDuration?.addEventListener("change", (e) => {
