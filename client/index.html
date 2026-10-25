@@ -22,7 +22,7 @@
 
       <!-- Top Navigation & User Display -->
       <header class="app-header">
-        <div class="user-display" id="user-display">
+        <div class="user-display" id="user-display" role="button" tabindex="0" title="Click to change your nickname in the game" aria-label="Change Nickname">
           <div class="avatar-wrapper">
             <img
               src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80"
@@ -37,6 +37,19 @@
             <div class="user-name-wrapper">
               <span class="user-name" id="user-name">Alex Rivera</span>
               <span class="user-tag" id="user-tag">@alex.rivera</span>
+              <button
+                type="button"
+                class="nickname-edit-btn"
+                id="nickname-edit-btn"
+                aria-label="Change Nickname"
+                title="Change nickname"
+              >
+                <svg class="nickname-edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                <span class="nickname-edit-tooltip">Edit Nickname</span>
+              </button>
             </div>
           </div>
         </div>
@@ -640,6 +653,130 @@
         </div>
       </div>
     </div>
+
+    <!-- Change Nickname Modal -->
+    <div class="nickname-modal-overlay" id="nickname-modal" aria-hidden="true">
+      <div class="nickname-modal-card" role="dialog" aria-modal="true" aria-labelledby="nickname-modal-title">
+        <div class="nickname-modal-header">
+          <div class="nickname-title-group">
+            <div class="nickname-header-icon-box">
+              <svg class="nickname-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="nickname-modal-title" id="nickname-modal-title">Change Game Nickname</h2>
+              <div class="nickname-modal-subtitle">Customize how you appear on the wheel and live session</div>
+            </div>
+          </div>
+          <button class="nickname-close-btn" id="nickname-close-btn" aria-label="Close nickname settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="nickname-modal-body">
+          <!-- Live Preview Card -->
+          <div class="nickname-preview-card">
+            <div class="nickname-preview-badge">LIVE PREVIEW</div>
+            <div class="nickname-preview-inner">
+              <img
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80"
+                alt="Avatar preview"
+                class="preview-avatar"
+                id="nickname-preview-avatar"
+              />
+              <div class="preview-text-block">
+                <span class="preview-greeting">Welcome back,</span>
+                <div class="preview-name-row">
+                  <span class="preview-name" id="nickname-preview-name">Alex Rivera</span>
+                  <span class="preview-tag" id="nickname-preview-tag">@alex.rivera</span>
+                </div>
+              </div>
+              <div class="preview-wheel-badge" id="nickname-preview-wheel-badge" title="How your name looks on a wheel slice">
+                <span class="preview-wheel-icon">🎡</span>
+                <span id="nickname-preview-slice">@Alex</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nickname Input Field -->
+          <div class="nickname-input-group">
+            <div class="nickname-input-label-row">
+              <label for="nickname-input" class="nickname-input-label">Your Game Nickname</label>
+              <span class="nickname-char-count" id="nickname-char-count">11/24</span>
+            </div>
+            <div class="nickname-input-wrapper">
+              <span class="nickname-input-prefix">✨</span>
+              <input
+                type="text"
+                id="nickname-input"
+                class="nickname-input"
+                placeholder="Enter your custom nickname..."
+                maxlength="24"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button type="button" class="nickname-clear-btn" id="nickname-clear-btn" aria-label="Clear input" title="Clear input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <p class="nickname-hint">Appears in the header welcome greeting, on wheel slices, and winner announcements.</p>
+          </div>
+
+          <!-- Quick Nickname Presets & Randomizer -->
+          <div class="nickname-quick-presets">
+            <div class="quick-presets-header">
+              <span class="quick-presets-title">Quick presets:</span>
+              <button type="button" class="nickname-random-btn" id="nickname-random-btn" title="Generate random fun nickname">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dice-icon">
+                  <rect x="2" y="2" width="20" height="20" rx="5" />
+                  <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                  <circle cx="16" cy="16" r="1.5" fill="currentColor" />
+                  <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                </svg>
+                <span>Roll Random</span>
+              </button>
+            </div>
+            <div class="quick-preset-chips" id="quick-preset-chips">
+              <button type="button" class="preset-chip" data-name="Lucky Spinner">Lucky Spinner 🍀</button>
+              <button type="button" class="preset-chip" data-name="Wheel Wizard">Wheel Wizard 🧙‍♂️</button>
+              <button type="button" class="preset-chip" data-name="Neon Champion">Neon Champion ⚡</button>
+              <button type="button" class="preset-chip" data-name="Golden Drop">Golden Drop 👑</button>
+              <button type="button" class="preset-chip" data-name="Jackpot King">Jackpot King 💎</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="nickname-modal-footer">
+          <button type="button" class="btn-nickname-reset" id="btn-nickname-reset" title="Revert to original Discord username">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            <span>Reset Default</span>
+          </button>
+          <div class="nickname-footer-right">
+            <button type="button" class="btn-nickname-cancel" id="btn-nickname-cancel">Cancel</button>
+            <button type="button" class="btn-nickname-save" id="btn-nickname-save">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>Save Nickname</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Game Notification Toast -->
+    <div class="game-toast" id="game-toast" role="status" aria-live="polite"></div>
 
     <!-- Main Module Script -->
     <script type="module" src="/main.js"></script>

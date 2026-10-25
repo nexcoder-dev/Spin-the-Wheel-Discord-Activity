@@ -190,6 +190,30 @@ export class RoomManager {
     return { room, participant, isNew, wheelUpdated };
   }
 
+  updateParticipantNickname(channelId, userId, nickname) {
+    const room = this.getOrCreateRoom(channelId);
+    const participant = room.participants.get(userId);
+    if (!participant) return null;
+
+    const trimmed = String(nickname || "").trim().slice(0, 32);
+    if (!trimmed) return null;
+
+    participant.nickname = trimmed;
+    participant.username = trimmed;
+
+    let wheelUpdated = false;
+    if (Array.isArray(room.wheelSegments)) {
+      room.wheelSegments.forEach((segment) => {
+        if (segment.userId === userId || segment.id === `player-${userId}`) {
+          segment.label = trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+          wheelUpdated = true;
+        }
+      });
+    }
+
+    return { room, participant, wheelUpdated };
+  }
+
   leaveAllBySocketId(socketId) {
     const affectedRooms = [];
 

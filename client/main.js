@@ -97,6 +97,108 @@ const confettiCanvas = document.getElementById("confetti-canvas");
 const tickerName = document.getElementById("ticker-name");
 const tickerPrize = document.getElementById("ticker-prize");
 
+// Top-Left User Display & Profile Elements
+const userDisplay = document.getElementById("user-display");
+const userNameEl = document.getElementById("user-name");
+const userTagEl = document.getElementById("user-tag");
+const userAvatarEl = document.getElementById("user-avatar");
+const channelNameText = document.getElementById("channel-name-text");
+const nicknameEditBtn = document.getElementById("nickname-edit-btn");
+
+// Nickname Modal Elements
+const nicknameModal = document.getElementById("nickname-modal");
+const nicknameCloseBtn = document.getElementById("nickname-close-btn");
+const nicknameInput = document.getElementById("nickname-input");
+const nicknameCharCount = document.getElementById("nickname-char-count");
+const nicknameClearBtn = document.getElementById("nickname-clear-btn");
+const nicknameRandomBtn = document.getElementById("nickname-random-btn");
+const quickPresetChips = document.getElementById("quick-preset-chips");
+const btnNicknameReset = document.getElementById("btn-nickname-reset");
+const btnNicknameCancel = document.getElementById("btn-nickname-cancel");
+const btnNicknameSave = document.getElementById("btn-nickname-save");
+const nicknamePreviewAvatar = document.getElementById("nickname-preview-avatar");
+const nicknamePreviewName = document.getElementById("nickname-preview-name");
+const nicknamePreviewTag = document.getElementById("nickname-preview-tag");
+const nicknamePreviewSlice = document.getElementById("nickname-preview-slice");
+const gameToast = document.getElementById("game-toast");
+
+// Nickname State & Presets
+let customNickname = localStorage.getItem("wheel-user-nickname") || "";
+let toastTimeout = null;
+let socket = null;
+let discordSdk = null;
+
+const RANDOM_NICKNAMES = [
+  "Lucky Spinner",
+  "Wheel Wizard",
+  "Neon Champion",
+  "Golden Drop",
+  "Jackpot King",
+  "Cosmic Star",
+  "Hyper Roller",
+  "Shadow Striker",
+  "Turbo Gamer",
+  "Victory Flame",
+  "Apex Legend",
+  "Quantum Dreamer",
+  "Pixel Knight",
+  "Arcade Master"
+];
+
+export function showToast(message) {
+  if (!gameToast) return;
+  gameToast.textContent = message;
+  gameToast.classList.add("show");
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    gameToast.classList.remove("show");
+  }, 3200);
+}
+
+export function getEffectiveNickname() {
+  if (customNickname) return customNickname;
+  if (auth && auth.user) return auth.user.global_name || auth.user.username;
+  return userNameEl?.textContent || "Alex Rivera";
+}
+
+export function applyNickname(name, saveToStorage = true) {
+  const trimmed = String(name || "").trim().slice(0, 24);
+  if (!trimmed) return;
+
+  customNickname = trimmed;
+  if (saveToStorage) {
+    localStorage.setItem("wheel-user-nickname", trimmed);
+  }
+
+  // Update top-left greeting
+  if (userNameEl) {
+    userNameEl.textContent = trimmed;
+  }
+
+  // Update live slice on the wheel if current player is in the slices
+  const currentUserId = auth?.user?.id || "alex";
+  const userSlice = MODES.members.slices.find(
+    (s) => s.id === currentUserId || s.id === "alex" || (auth?.user && s.id === `member-${auth.user.id}`)
+  );
+  if (userSlice) {
+    userSlice.label = trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+  } else if (MODES.members.slices.length > 0) {
+    MODES.members.slices[0].label = trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+  }
+
+  if (currentMode === "members") {
+    renderWheel();
+  }
+
+  // Broadcast to backend socket room if connected
+  if (socket && socket.connected) {
+    socket.emit("user:update_nickname", {
+      channelId: discordSdk?.channelId,
+      nickname: trimmed,
+    });
+  }
+}
+
 // Wheel Settings State & Storage
 const savedSettings = JSON.parse(localStorage.getItem("wheel-settings") || "{}");
 export const wheelSettings = {
@@ -1083,10 +1185,6 @@ function stopConfetti() {
    EVENT LISTENERS & MODE SWITCHING
    ========================================================================== */
 
-// Global socket instance for multiplayer synchronisation with server.js
-let socket = null;
-
-
 // Spin Button Trigger
 btnSpin.addEventListener("click", () => {
   if (wheelSettings.hostOnlySpin && !isHostUser()) {
@@ -1170,7 +1268,7 @@ async function setupDiscordSdk() {
   }
 
   try {
-    const discordSdk = new DiscordSDK(clientId);
+    discordSdk = new DiscordSDK(clientId);
     await discordSdk.ready();
     console.log("Discord SDK is ready.");
 
@@ -1178,7 +1276,7 @@ async function setupDiscordSdk() {
     if (discordSdk.channelId != null && discordSdk.guildId != null) {
       try {
         const channel = await discordSdk.commands.getChannel({ channel_id: discordSdk.channelId });
-        if (channel && channel.name) {
+        if (channel && channel.name && channelNameText) {
           channelNameText.textContent = `Voice: #${channel.name}`;
         }
       } catch (err) {
@@ -1207,14 +1305,22 @@ async function setupDiscordSdk() {
         auth = await discordSdk.commands.authenticate({ access_token });
 
         if (auth && auth.user) {
-          userNameEl.textContent = auth.user.global_name || auth.user.username;
-          userTagEl.textContent = `@${auth.user.username}`;
-          if (auth.user.avatar) {
+          const effectiveName = customNickname || auth.user.global_name || auth.user.username;
+          if (userNameEl) {
+            userNameEl.textContent = effectiveName;
+          }
+          if (userTagEl) {
+            userTagEl.textContent = `@${auth.user.username}`;
+          }
+          if (auth.user.avatar && userAvatarEl) {
             userAvatarEl.src = `https://cdn.discordapp.com/avatars/${auth.user.id}/${auth.user.avatar}.png?size=128`;
           }
 
           // Connect to backend Socket.IO room for live VC sync
-          initSocketConnection(discordSdk.channelId, auth.user);
+          initSocketConnection(discordSdk.channelId, {
+            ...auth.user,
+            username: effectiveName,
+          });
         }
       }
     } catch (authError) {
@@ -1292,6 +1398,15 @@ function initSocketConnection(channelId, user) {
     socket.on("wheel:segments_updated", ({ segments }) => {
       if (Array.isArray(segments) && segments.length > 0) {
         setParticipants(segments);
+      }
+    });
+
+    socket.on("user:nickname_updated", ({ userId, nickname, participants, wheelSegments }) => {
+      console.log(`[Socket] User ${userId} nickname updated to: ${nickname}`);
+      if (Array.isArray(wheelSegments) && wheelSegments.length > 0) {
+        setParticipants(wheelSegments);
+      } else if (Array.isArray(participants) && participants.length > 0) {
+        setParticipants(participants);
       }
     });
 
@@ -1614,4 +1729,184 @@ function initDropPoolHostControls() {
   });
 }
 
+/* ==========================================================================
+   CHANGE NICKNAME MODAL CONTROLLER
+   ========================================================================== */
+function initNicknameModal() {
+  function updatePreview(val) {
+    const raw = String(val || "").trim();
+    const displayName = raw || getEffectiveNickname();
+    if (nicknamePreviewName) nicknamePreviewName.textContent = displayName;
+    if (nicknamePreviewSlice) {
+      nicknamePreviewSlice.textContent = displayName.startsWith("@") ? displayName : `@${displayName}`;
+    }
+    if (nicknameCharCount) {
+      nicknameCharCount.textContent = `${raw.length}/24`;
+    }
+    if (nicknameClearBtn) {
+      if (raw.length > 0) {
+        nicknameClearBtn.classList.add("visible");
+      } else {
+        nicknameClearBtn.classList.remove("visible");
+      }
+    }
+  }
+
+  function openNicknameModal() {
+    const currentName = customNickname || (auth?.user ? (auth.user.global_name || auth.user.username) : (userNameEl?.textContent || "Alex Rivera"));
+    if (nicknameInput) {
+      nicknameInput.value = currentName;
+    }
+    if (nicknamePreviewAvatar && userAvatarEl) {
+      nicknamePreviewAvatar.src = userAvatarEl.src;
+    }
+    if (nicknamePreviewTag && userTagEl) {
+      nicknamePreviewTag.textContent = userTagEl.textContent;
+    }
+    updatePreview(currentName);
+    nicknameModal?.classList.add("active");
+    nicknameModal?.setAttribute("aria-hidden", "false");
+    setTimeout(() => {
+      nicknameInput?.focus();
+      nicknameInput?.select();
+    }, 60);
+  }
+
+  function closeNicknameModal() {
+    nicknameModal?.classList.remove("active");
+    nicknameModal?.setAttribute("aria-hidden", "true");
+  }
+
+  function handleSaveNickname() {
+    const raw = nicknameInput ? nicknameInput.value.trim() : "";
+    if (!raw) {
+      nicknameInput?.focus();
+      return;
+    }
+    applyNickname(raw, true);
+    showToast(`Nickname updated to "${raw}" ✨`);
+    closeNicknameModal();
+  }
+
+  function handleResetNickname() {
+    let defaultName = "Alex Rivera";
+    if (auth && auth.user) {
+      defaultName = auth.user.global_name || auth.user.username;
+    }
+    localStorage.removeItem("wheel-user-nickname");
+    customNickname = "";
+    if (userNameEl) {
+      userNameEl.textContent = defaultName;
+    }
+    const currentUserId = auth?.user?.id || "alex";
+    const userSlice = MODES.members.slices.find(
+      (s) => s.id === currentUserId || s.id === "alex" || (auth?.user && s.id === `member-${auth.user.id}`)
+    );
+    if (userSlice) {
+      userSlice.label = defaultName.startsWith("@") ? defaultName : `@${defaultName}`;
+    } else if (MODES.members.slices.length > 0) {
+      MODES.members.slices[0].label = defaultName.startsWith("@") ? defaultName : `@${defaultName}`;
+    }
+    if (currentMode === "members") {
+      renderWheel();
+    }
+    if (socket && socket.connected) {
+      socket.emit("user:update_nickname", {
+        channelId: discordSdk?.channelId,
+        nickname: defaultName,
+      });
+    }
+    showToast(`Nickname reset to default (${defaultName}) 🔄`);
+    closeNicknameModal();
+  }
+
+  // Open triggers: Clicking on userDisplay or nicknameEditBtn
+  userDisplay?.addEventListener("click", () => {
+    openNicknameModal();
+  });
+
+  userDisplay?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openNicknameModal();
+    }
+  });
+
+  nicknameEditBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openNicknameModal();
+  });
+
+  nicknameCloseBtn?.addEventListener("click", closeNicknameModal);
+  btnNicknameCancel?.addEventListener("click", closeNicknameModal);
+  btnNicknameSave?.addEventListener("click", handleSaveNickname);
+  btnNicknameReset?.addEventListener("click", handleResetNickname);
+
+  nicknameInput?.addEventListener("input", (e) => {
+    updatePreview(e.target.value);
+  });
+
+  nicknameInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSaveNickname();
+    } else if (e.key === "Escape") {
+      closeNicknameModal();
+    }
+  });
+
+  nicknameClearBtn?.addEventListener("click", () => {
+    if (nicknameInput) {
+      nicknameInput.value = "";
+      nicknameInput.focus();
+      updatePreview("");
+    }
+  });
+
+  nicknameRandomBtn?.addEventListener("click", () => {
+    const randomName = RANDOM_NICKNAMES[Math.floor(Math.random() * RANDOM_NICKNAMES.length)];
+    if (nicknameInput) {
+      nicknameInput.value = randomName;
+      updatePreview(randomName);
+    }
+  });
+
+  // Preset chips click
+  quickPresetChips?.addEventListener("click", (e) => {
+    const chip = e.target.closest(".preset-chip");
+    if (!chip) return;
+    const name = chip.getAttribute("data-name") || chip.textContent.trim();
+    if (nicknameInput) {
+      nicknameInput.value = name;
+      updatePreview(name);
+    }
+  });
+
+  nicknameModal?.addEventListener("click", (e) => {
+    if (e.target === nicknameModal) {
+      closeNicknameModal();
+    }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && nicknameModal?.classList.contains("active")) {
+      closeNicknameModal();
+    }
+  });
+}
+
 initDropPoolHostControls();
+initNicknameModal();
+
+// If custom nickname is saved from a prior session, apply to initial slices and header
+if (customNickname) {
+  if (userNameEl) {
+    userNameEl.textContent = customNickname;
+  }
+  if (MODES.members.slices.length > 0) {
+    MODES.members.slices[0].label = customNickname.startsWith("@") ? customNickname : `@${customNickname}`;
+  }
+  if (currentMode === "members") {
+    renderWheel();
+  }
+}

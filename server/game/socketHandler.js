@@ -287,6 +287,46 @@ export function setupSocketHandler(io) {
       }
     });
 
+    socket.on("user:update_nickname", ({ channelId, nickname }, callback) => {
+      try {
+        const targetChannelId = channelId || socket.channelId;
+        if (!targetChannelId) {
+          throw new Error("channelId is required to update nickname");
+        }
+
+        const result = roomManager.updateParticipantNickname(targetChannelId, socket.userId, nickname);
+        if (!result) {
+          throw new Error("Could not update nickname");
+        }
+
+        const state = roomManager.getSerializedState(targetChannelId);
+
+        io.to(targetChannelId).emit("user:nickname_updated", {
+          userId: socket.userId,
+          nickname: result.participant.username,
+          participants: state.participants,
+          wheelSegments: state.wheelSegments
+        });
+
+        if (result.wheelUpdated) {
+          io.to(targetChannelId).emit("wheel:segments_updated", {
+            segments: state.wheelSegments,
+            activePresetId: state.activePresetId
+          });
+        }
+
+        if (typeof callback === "function") {
+          callback({ success: true, nickname: result.participant.username });
+        }
+      } catch (err) {
+        if (typeof callback === "function") {
+          callback({ success: false, error: err.message });
+        } else {
+          socket.emit("error", { message: err.message });
+        }
+      }
+    });
+
     socket.on("game:reaction", ({ channelId, emoji }) => {
       const targetChannelId = channelId || socket.channelId;
       if (!targetChannelId || !emoji) return;
