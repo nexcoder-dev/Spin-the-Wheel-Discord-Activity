@@ -100,3 +100,25 @@ test("RoomManager automatically syncs Voice Channel participants for Giveaways",
   assert.equal(finish.giveawayWinner.prize, "Discord Nitro 1 Month");
   assert.equal(room.giveaway.winners.length, 1);
 });
+
+test("RoomManager updates participant nickname in room and wheel segments", () => {
+  const manager = new RoomManager();
+  const channelId = "nick-change-test";
+
+  manager.joinRoom(channelId, { id: "u1", username: "OriginalName" }, "sock_1");
+  manager.joinRoom(channelId, { id: "u2", username: "PlayerTwo" }, "sock_2");
+
+  let room = manager.getRoom(channelId);
+  assert.equal(room.wheelSegments[0].label, "OriginalName");
+
+  const updateResult = manager.updateParticipantNickname(channelId, "u1", "CustomNick");
+  assert.ok(updateResult);
+  assert.equal(updateResult.participant.username, "CustomNick");
+  assert.equal(updateResult.participant.nickname, "CustomNick");
+
+  // Wheel slice for user u1 should now reflect the new nickname
+  const u1Slice = room.wheelSegments.find((s) => s.userId === "u1");
+  assert.ok(u1Slice);
+  assert.equal(u1Slice.label, "@CustomNick");
+});
+
