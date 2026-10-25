@@ -1,7 +1,7 @@
 {
-  "name": "getting-starter-activity-server",
+  "name": "spin-the-wheel-discord-activity-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Real-time multiplayer Voice Channel giveaway & decision wheel for Discord Activities",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -9,9 +9,19 @@
     "dev": "node server.js",
     "test": "node --test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nexcoder-dev/Spin-the-Wheel-Discord-Activity.git"
+  },
+  "keywords": [
+    "discord",
+    "discord-activity",
+    "discord-embedded-app",
+    "spin-the-wheel",
+    "giveaway"
+  ],
+  "author": "Sayan & Vedant",
+  "license": "Custom",
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

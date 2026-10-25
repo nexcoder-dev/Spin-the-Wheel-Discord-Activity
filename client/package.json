@@ -1,8 +1,12 @@
 {
-  "name": "getting-started-activity",
+  "name": "spin-the-wheel-discord-activity-client",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nexcoder-dev/Spin-the-Wheel-Discord-Activity.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

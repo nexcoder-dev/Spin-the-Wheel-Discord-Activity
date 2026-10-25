@@ -35,10 +35,10 @@ The project consists of a high-performance **Client-Server Discord Activity arch
 
 ### Local Setup Steps
 
-1. **Fork the repository** on GitHub.
-2. **Clone your fork**:
+1. **Fork the repository** on GitHub (or clone directly).
+2. **Clone the repository**:
    ```bash
-   git clone https://github.com/<your-username>/Spin-the-Wheel-Discord-Activity.git
+   git clone https://github.com/nexcoder-dev/Spin-the-Wheel-Discord-Activity.git
    cd Spin-the-Wheel-Discord-Activity
    ```
 
