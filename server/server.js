@@ -22,7 +22,31 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-const httpServer = http.createServer(app);
+app.use((req, res, next) => {
+  if (req.url && req.url.startsWith("/.proxy/api/")) {
+    req.url = req.url.replace(/^\/\.proxy/, "");
+  } else if (req.url && req.url.startsWith("/.proxy/")) {
+    req.url = req.url.replace(/^\/\.proxy/, "");
+  }
+  next();
+});
+
+const httpServer = http.createServer((req, res) => {
+  if (req.url && req.url.startsWith("/.proxy/api/")) {
+    req.url = req.url.replace(/^\/\.proxy/, "");
+  } else if (req.url && req.url.startsWith("/.proxy/")) {
+    req.url = req.url.replace(/^\/\.proxy/, "");
+  }
+  app(req, res);
+});
+
+httpServer.on("upgrade", (req, socket, head) => {
+  if (req.url && req.url.startsWith("/.proxy/api/")) {
+    req.url = req.url.replace(/^\/\.proxy/, "");
+  } else if (req.url && req.url.startsWith("/.proxy/")) {
+    req.url = req.url.replace(/^\/\.proxy/, "");
+  }
+});
 
 const io = new Server(httpServer, {
   path: "/api/socket.io",
@@ -85,6 +109,17 @@ app.post("/api/token", async (req, res) => {
     console.error("[Token Endpoint Error]", err);
     res.status(500).json({ error: "Internal server error during token exchange", details: err.message });
   }
+});
+
+app.post("/token", (req, res, next) => {
+  req.url = "/api/token";
+  app.handle(req, res, next);
+});
+
+app.get("/api/config", (req, res) => {
+  res.json({
+    clientId: process.env.VITE_DISCORD_CLIENT_ID || null
+  });
 });
 
 app.get("/api/presets", (req, res) => {
@@ -194,7 +229,7 @@ const clientDistPath = path.resolve(__dirname, "../client/dist");
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
   app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api")) return next();
+    if (req.path.startsWith("/api") || req.path.startsWith("/.proxy")) return next();
     res.sendFile(path.join(clientDistPath, "index.html"));
   });
 }

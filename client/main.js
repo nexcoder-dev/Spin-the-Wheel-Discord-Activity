@@ -1481,10 +1481,22 @@ async function setupDiscordSdk() {
   );
 
   let inDiscordSuccess = false;
+  let activeClientId = clientId;
 
-  if (clientId && isInsideDiscordIframe) {
+  if (!activeClientId && isInsideDiscordIframe) {
     try {
-      discordSdk = new DiscordSDK(clientId);
+      const cfgRes = await fetch("/api/config");
+      if (cfgRes.ok) {
+        const cfg = await cfgRes.json();
+        if (cfg.clientId) activeClientId = cfg.clientId;
+      }
+    } catch {
+    }
+  }
+
+  if (activeClientId && isInsideDiscordIframe) {
+    try {
+      discordSdk = new DiscordSDK(activeClientId);
 
       const readyPromise = discordSdk.ready();
       const timeoutPromise = new Promise((_, reject) =>
@@ -1499,7 +1511,7 @@ async function setupDiscordSdk() {
 
       try {
         const { code } = await discordSdk.commands.authorize({
-          client_id: clientId,
+          client_id: activeClientId,
           response_type: "code",
           state: "",
           prompt: "none",

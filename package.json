@@ -1,0 +1,16 @@
+{
+  "name": "spin-the-wheel-discord-activity",
+  "version": "1.0.0",
+  "description": "Real-time multiplayer Voice Channel giveaway & decision wheel for Discord Activities",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm --prefix client install --no-save && npm --prefix client run build && npm --prefix server install --no-save",
+    "build:client": "npm --prefix client run build",
+    "start": "node server/server.js",
+    "test": "npm --prefix server test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: spin-the-wheel-discord-activity
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm --prefix client install --no-save && npm --prefix client run build && npm --prefix server install --no-save
+    startCommand: node server/server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: VITE_DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
