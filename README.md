@@ -209,11 +209,43 @@ npm test
 To create an optimized production bundle:
 
 ```bash
-cd client
 npm run build
 ```
 
-The compiled assets will be written to `client/dist/`, which the Express server can serve directly in production.
+The compiled assets will be written to `client/dist/`, which the Express server serves directly in production.
+
+---
+
+## ☁️ Deploying to Render (Hosting on Render.com)
+
+You can host **Spin the Wheel** on [Render.com](https://render.com/) as a unified Web Service (frontend + backend + WebSockets together).
+
+### Method 1: Instant Blueprint Deployment (Recommended)
+1. Fork or push this repository to your GitHub account.
+2. Log in to [Render Dashboard](https://dashboard.render.com/).
+3. Click **New +** -> **Blueprint**.
+4. Select your `Spin-the-Wheel-Discord-Activity` repository. Render will automatically detect [`render.yaml`](render.yaml).
+5. Enter your environment variables when prompted:
+   * `VITE_DISCORD_CLIENT_ID`: Your Discord Application Client ID.
+   * `DISCORD_CLIENT_SECRET`: Your Discord Application Client Secret.
+6. Click **Apply**. Render will automatically build the client and start the server!
+
+### Method 2: Manual Web Service Setup
+If creating the service manually:
+1. In the Render Dashboard, click **New +** -> **Web Service**.
+2. Connect your GitHub repository.
+3. Configure the service settings:
+   * **Name**: `spin-the-wheel-discord-activity` (or your preferred name)
+   * **Language / Runtime**: `Node`
+   * **Branch**: `main`
+   * **Build Command**: `npm --prefix client install --no-save && npm --prefix client run build && npm --prefix server install --no-save`
+   * **Start Command**: `node server/server.js`
+   * **Plan**: `Free`
+4. Add the following **Environment Variables**:
+   * `NODE_VERSION`: `20.18.0`
+   * `VITE_DISCORD_CLIENT_ID`: `<your_discord_application_client_id>`
+   * `DISCORD_CLIENT_SECRET`: `<your_discord_application_client_secret>`
+5. Click **Create Web Service**. Once deployed, Render will provide a free HTTPS URL like `https://spin-the-wheel-discord-activity.onrender.com`.
 
 ---
 
@@ -226,9 +258,9 @@ To run and test the activity inside Discord:
 3. Go to **OAuth2** -> **General**, copy the **Client Secret**, and paste it as `DISCORD_CLIENT_SECRET` in your `.env` file.
 4. Navigate to **Activities** (or **Embedded App SDK**):
    * Enable the Activity feature.
-   * Set your tunnel / hosting URL (e.g. using Cloudflare Tunnel `cloudflared` or `ngrok` pointing to your local client port `5173`).
+   * **URL**: Set your Render URL, e.g. `https://<your-service>.onrender.com` (or your local tunnel for development).
 5. Configure **URL Mappings** under the Activity settings:
-   * **Prefix**: `/.proxy/api` -> **Target**: `http://localhost:3001` (or your production API URL).
+   * **Prefix**: `/.proxy/api` -> **Target**: `https://<your-service>.onrender.com/api` (or `http://localhost:3001` for local testing).
 6. Join a Discord Voice Channel on a server where you have developer permissions, click the **Rocket 🚀 (Activities)** icon, and launch **Spin the Wheel**!
 
 ---
